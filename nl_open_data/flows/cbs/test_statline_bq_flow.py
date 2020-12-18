@@ -1,3 +1,5 @@
+from prefect import task, Flow, unmapped, Parameter
+
 from statline_bq.utils import (
     check_v4,
     get_urls,
@@ -14,7 +16,6 @@ from statline_bq.utils import (
     get_col_descs_from_gcs,
     bq_update_main_table_col_descriptions,
 )
-from prefect import task, Flow, unmapped, Parameter
 
 # Converting functions to tasks
 check_v4 = task(check_v4)
@@ -119,7 +120,7 @@ with Flow("CBS") as flow:
     )
 
 if __name__ == "__main__":
-    from statline_bq.config import get_config
+    from nl_open_data.config import get_config
     from pathlib import Path
 
     config_file = Path.home() / Path("Projects/nl-open-data/nl_open_data/config.toml")
