@@ -1,9 +1,11 @@
 from dataclasses import dataclass
-from serde import serialize, deserialize
-from serde.toml import from_toml
 from pathlib import Path
 from typing import Union
-from tomlkit import parse as parse_toml
+
+from serde import serialize, deserialize
+from serde.toml import from_toml
+
+# from tomlkit import parse as parse_toml
 
 
 @deserialize
@@ -137,34 +139,33 @@ def get_config(config_file: Union[Path, str]):
     return config
 
 
-def get_datasets(datasets_file: Union[Path, str]) -> tuple:
+# def get_datasets(datasets_file: Union[Path, str]) -> tuple:
 
-    """Parses a toml file and returns dataset ids as a list.
+#     """Parses a toml file and returns dataset ids as a list.
 
-    See README.MD for further details regarding the correct way
-    to write the toml file, or see the existing datasets.toml.
+#     See README.MD for further details regarding the correct way
+#     to write the toml file, or see the existing datasets.toml.
 
-    Parameters
-    ----------
-    datasets_file: Path or str
-        The location of the datasets.toml file
+#     Parameters
+#     ----------
+#     datasets_file: Path or str
+#         The location of the datasets.toml file
 
-    Returns
-    -------
-    tuple
-        A tuple holding all dataset ids to be processed
-    """
-    config_file = Path(datasets_file)
-    with open(config_file, "r") as f:
-        doc = parse_toml(f.read())
-    return tuple(
-        doc["datasets"]["ids"]
-    )  # TODO: make it more robust to changes in the file? i.e. if 'ids' was changed to something else?
+#     Returns
+#     -------
+#     tuple
+#         A tuple holding all dataset ids to be processed
+#     """
+#     config_file = Path(datasets_file)
+#     with open(config_file, "r") as f:
+#         doc = parse_toml(f.read())
+#     return tuple(
+#         doc["datasets"]["ids"]
+#     )  # TODO: make it more robust to changes in the file? i.e. if 'ids' was changed to something else?
 
 
 if __name__ == "__main__":
-    config_path = Path("./statline_bq/config.toml")
-    datasets_path = Path("./statline_bq/datasets.toml")
+    config_path = Path("./nl_open_data/config.toml")
+    datasets_path = Path("./nl_open_data/datasets.toml")
     config = get_config(config_path)
-    datasets = get_datasets(datasets_path)
-    print(datasets)
+    print(config)

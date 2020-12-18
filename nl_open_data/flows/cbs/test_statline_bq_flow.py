@@ -1,17 +1,5 @@
-"""A Prefect flow to download XXXXX and upload to Google Cloud Platform.
-
-The GCP configuration as well as local paths used for download, can be defined
-in 'user_config.toml', which is imported and coupled to the Prefect config
-object inside 'config.py'. Therefore, anything that is defined in
-the 'user_config.toml' can be accessed by accessing `config`. For
-example, `config.gcp.dev`.
-"""
-
-# the config object must be imported from config.py before any Prefect imports
-from nl_open_data.config import config
-
-from box import Box
 from prefect import task, Flow, unmapped, Parameter
+
 from statline_bq.utils import (
     check_v4,
     get_urls,
@@ -132,6 +120,8 @@ with Flow("CBS") as statline_flow:
 
 
 if __name__ == "__main__":
+    from nl_open_data.config import get_config
+    from pathlib import Path
 
     ids = ["83583NED"]
     state = statline_flow.run(parameters={"ids": ids})
