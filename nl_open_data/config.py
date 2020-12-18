@@ -1,111 +1,170 @@
-from dataclasses import dataclass, field
-import os
-import json
+from dataclasses import dataclass
+from serde import serialize, deserialize
+from serde.toml import from_toml
 from pathlib import Path
+from typing import Union
+from tomlkit import parse as parse_toml
 
 
-def get_gcloud_adc():
+@deserialize
+@serialize
+@dataclass(frozen=True)
+class GcpProject:
+    """A immutable Google Cloud Platform Project Data Class, holding
+    information regarding an existing GCP Project.
+
+    Attributes
+    ----------
+    project_id: str
+        The project id
+    bucket: str
+        An existing bucket in the project, where all Storage blobs will be placed
+    location: str
+        The location of all Storage and BQ items
     """
-    Gets gcloud application default credentials.
 
-    There are two recommended ways to authenticate on GCP:
-    - Use `gcloud auth application-default login`,
-      see https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login
-    - Use service accounts and setting `GOOGLE_APPLICATION_CREDENTIALS`,
-      see https://cloud.google.com/docs/authentication/production
+    project_id: str
+    bucket: str
+    location: str
 
-    Note prefect uses `google.oauth2.service_account.Credentials.from_service_account_info()
-    for initialising clients.
-    See https://google-auth.readthedocs.io/en/latest/reference/google.oauth2.service_account.html
 
+@deserialize
+@serialize
+@dataclass(frozen=True)
+class Gcp:
+    """An immutable Data Class for Google Cloud Platform, holding three
+    GCPProject, one per development stage: 'dev', 'test' and 'prod'.
+
+    Attributes
+    ----------
+    dev: GcpProject
+        A GcpProject instance to be used for development.
+    test: GcpProject
+        A GcpProject instance to be used for testing.
+    prod: GcpProject
+        A GcpProject instance to be used for production.
     """
-    GCLOUD_ADC_PATH = {
-        "posix": ".config/gcloud/application_default_credentials.json",
-        "nt": "gcloud/application_default_credentials.json",
-    }
-    if os.name == "posix":
-        return Path.home() / GCLOUD_ADC_PATH[os.name]
-    elif os.name == "nt":
-        return Path(os.getenv["APPDATA"]) / GCLOUD_ADC_PATH[os.name]
-    else:
-        return None
+
+    dev: GcpProject
+    test: GcpProject
+    prod: GcpProject
 
 
-@dataclass
-class GCP:
-    credentials_file: Path = field(default_factory=get_gcloud_adc)
-    credentials_info: dict = None
-    project: str = None
-    bucket: str = None
-    location: str = "EU"
-
-    def __post_init__(self):
-        self.credentials_info = json.load(open(self.credentials_file))
-
-
-@dataclass
+@deserialize
+@serialize
+@dataclass(frozen=True)
 class Paths:
-    """Data paths defined relative to root
+    """An immutable Data Class holding information regarding local paths to be
+    used during processing of datasets.
+
+    When in this library, Paths.root is always called as follows:
+
+    ```
+    from pathlib import Path
+    root = Path.home() / Path(Paths.root)
+    ```
+
+    And the rest of the folders are defined relative to it as follows:
+
+    ```
+    temp = root / Path(Paths.temp)
+    ```
+
+    Attributes
+    ----------
+    root: str
+        The path leading to the local folder of 'statline-bq'
+    temp: str
+        A folder to usewhen writing to disk temporarly
+    agb: str
+        A folder to hold all agb related data
+    vektis_open_data: str
+        A folder to hold all vektis related data
+    cbs: str
+        A folder to hold all cbs related data
+    bag: str
+        A folder to hold all bag related data
     """
 
-    root: Path = None
-    agb: Path = None
-    vektis_open_data: Path = None
-    cbs: Path = None
-    bag: Path = None
-    tmp: Path = None
+    root: str = None
+    temp: str = None
+    agb: str = None
+    vektis_open_data: str = None
+    cbs: str = None
+    bag: str = None
 
 
-@dataclass
+@deserialize
+@serialize
+@dataclass(frozen=True)
 class Config:
-    gcp: GCP = None
-    path: Paths = None
+    """An immutable Data Class holding configuration details for the library,
+    holding one instance of Gcp and one of Paths.
 
-
-def get_config(config):
-    """Get configuration.
-
-    config should be one of configs.
+    Attributes
+    ----------
+    gcp: Gcp
+        Information for Gcp to use
+    paths: Paths
+        Information for local paths
     """
-    configs = {
-        "dk": dict(
-            gcp=GCP(project="nl-open-data", location="EU"),
-            path=Paths(
-                root=Path.home() / "nl-open-data",
-                agb=Path("vektis/agb/FAGBX_All_P!Q0"),
-                vektis_open_data=Path("vektis/open-data"),
-                cbs=Path("cbs"),
-                bag=Path("bag"),
-                tmp=Path("tmp"),
-            ),
-        ),
-        "dataverbinders": dict(
-            gcp=GCP(project="dataverbinders", bucket="dataverbinders", location="EU"),
-            path=Paths(
-                root=Path.home() / "nl-open-data",
-                agb=Path("vektis/agb/FAGBX_All_P!Q0"),
-                vektis_open_data=Path("vektis/open-data"),
-                cbs=Path("cbs"),
-                bag=Path("bag"),
-                tmp=Path("tmp"),
-            ),
-        ),
-        "ag": dict(
-            gcp=GCP(project="dataverbinders-dev", location="EU"),
-            path=Paths(
-                root=Path.home() / "Projects/nl-open-data",
-                # agb=Path("agb"),
-                # vektis_open_data=Path("vektis/open-data"),
-                cbs=Path("cbs"),
-                # bag=Path("bag"),
-                tmp=Path("tmp"),
-            ),
-        )
-    }
-    try:
-        return Config(**configs[config])
 
-    except KeyError as err:
-        print(
-            f"{err}: configuration '{config}' not found. Choose from: {configs.keys()}"
-        )
+    gcp: Gcp
+    paths: Paths
+
+
+def get_config(config_file: Union[Path, str]):
+    """Parses a toml file, and returns a Config object.
+    
+    Takes a path to a toml file, and parses it to instantiate and populate a
+    Config object. See README.MD for further details regarding the correct way
+    to write the toml file, or see the existing config.toml.
+
+    Parameters
+    ----------
+    config_file: Path or str
+        The location of the config.toml file
+    
+    Returns
+    -------
+    config: Config
+        A config object with relevant configuration information, including
+        GCP and paths info.
+    """
+    config_file = Path(config_file)
+    with open(config_file, "r") as f:
+        config = from_toml(Config, f.read())
+    return config
+
+
+def get_datasets(datasets_file: Union[Path, str]) -> tuple:
+
+    """Parses a toml file and returns dataset ids as a list.
+
+    See README.MD for further details regarding the correct way
+    to write the toml file, or see the existing datasets.toml.
+
+    Parameters
+    ----------
+    datasets_file: Path or str
+        The location of the datasets.toml file
+
+    Returns
+    -------
+    tuple
+        A tuple holding all dataset ids to be processed
+    """
+    config_file = Path(datasets_file)
+    with open(config_file, "r") as f:
+        doc = parse_toml(f.read())
+    return tuple(
+        doc["datasets"]["ids"]
+    )  # TODO: make it more robust to changes in the file? i.e. if 'ids' was changed to something else?
+
+
+if __name__ == "__main__":
+    config_path = Path("./statline_bq/config.toml")
+    datasets_path = Path("./statline_bq/datasets.toml")
+    config = get_config(config_path)
+    datasets = get_datasets(datasets_path)
+    print(datasets)
