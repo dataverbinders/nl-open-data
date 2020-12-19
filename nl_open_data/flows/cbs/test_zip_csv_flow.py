@@ -35,6 +35,7 @@ with Flow("PC6HUISNR") as zip_flow:
     gcp_env = Parameter("gcp_env", default="dev")
     dataset_name = Parameter("dataset_name")
     dataset_description = Parameter("dataset_description", default=None)
+    source = Parameter("source", required=False)
 
     local_dir = create_dir(local_folder)
     curl_command = curl_cmd(url, filepath)
@@ -56,6 +57,7 @@ with Flow("PC6HUISNR") as zip_flow:
         dataset_name=dataset_name,
         config=config,
         gcp_env=gcp_env,
+        source=source,
         upstream_tasks=[gcs_ids],
     )
     remove_dir(local_dir, upstream_tasks=[gcs_ids])
@@ -86,6 +88,7 @@ if __name__ == "__main__":
             "csv_delimiter": ";",
             "gcs_folder": gcs_folder,
             "dataset_name": dataset_name,
+            "source": "cbs",
         }
     )
 
