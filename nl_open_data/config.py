@@ -2,12 +2,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Union
 
+from dataclasses_json import dataclass_json
 from serde import serialize, deserialize
 from serde.toml import from_toml
 
 # from tomlkit import parse as parse_toml
 
 
+@dataclass_json
 @deserialize
 @serialize
 @dataclass(frozen=True)
@@ -30,6 +32,7 @@ class GcpProject:
     location: str
 
 
+@dataclass_json
 @deserialize
 @serialize
 @dataclass(frozen=True)
@@ -52,6 +55,7 @@ class Gcp:
     prod: GcpProject
 
 
+@dataclass_json
 @deserialize
 @serialize
 @dataclass(frozen=True)
@@ -94,8 +98,10 @@ class Paths:
     vektis_open_data: str = None
     cbs: str = None
     bag: str = None
+    mlz: str = None
 
 
+@dataclass_json
 @deserialize
 @serialize
 @dataclass(frozen=True)

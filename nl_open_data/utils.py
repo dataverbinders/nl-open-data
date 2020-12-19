@@ -5,7 +5,7 @@ from google.cloud import storage
 from google.cloud import bigquery
 from google.cloud import exceptions
 
-from statline_bq.config import Config, GcpProject
+from nl_open_data.config import Config, GcpProject
 
 
 def create_dir_util(path: Union[Path, str]) -> Path:

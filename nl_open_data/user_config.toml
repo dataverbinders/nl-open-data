@@ -22,7 +22,8 @@
     
 [paths]
 # Temporary paths to use for transformations are defined here.
-# All data paths are relative to "Path(__file__).parent"
+# All data paths are relative to "Path.home()/root"
+root = "Projects/nl-open-data"
 temp = "temp"
 cbs = "cbs"
 mlz = "mlz"

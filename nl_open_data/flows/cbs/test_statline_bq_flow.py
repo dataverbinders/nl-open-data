@@ -1,5 +1,5 @@
+import prefect
 from prefect import task, Flow, unmapped, Parameter
-
 from statline_bq.utils import (
     check_v4,
     get_urls,
@@ -17,7 +17,6 @@ from statline_bq.utils import (
     bq_update_main_table_col_descriptions,
 )
 
-# from nl_open_data.config import config
 from nl_open_data.tasks import remove_dir
 
 # Converting statline-bq functions to tasks
@@ -35,13 +34,21 @@ gcs_to_gbq = task(gcs_to_gbq)
 set_gcp = task(set_gcp)
 get_col_descs_from_gcs = task(get_col_descs_from_gcs)
 bq_update_main_table_col_descriptions = task(bq_update_main_table_col_descriptions)
+remove_dir = task(remove_dir)
+
+ids = ["83583NED"]
+# ids = ["83583NED", "83765NED", "84799NED", "84583NED", "84286NED"]
+
 
 with Flow("CBS") as statline_flow:
     source = Parameter("source", default="cbs")
-    ids = Parameter("ids")
-    third_party = Parameter("third_party", default="False")
+    # config = Parameter("config")
+    third_party = Parameter("third_party", default=False)
     gcp_env = Parameter("gcp_env", default="dev")
-    config = Box({"paths": config.paths, "gcp": config.gcp})
+
+    paths = prefect.config.paths
+    gcp = prefect.config.gcp
+
     odata_versions = check_v4.map(ids)
     urls = get_urls.map(
         ids, odata_version=odata_versions, third_party=unmapped(third_party),
@@ -116,13 +123,14 @@ with Flow("CBS") as statline_flow:
         gcp_env=unmapped(gcp_env),
         upstream_tasks=[desc_dicts],
     )
-    remove = remove_dir.map(pq_dir, upstream_tasks=[gcs_folders])
+    remove_dir.map(pq_dir, upstream_tasks=[gcs_folders])
 
 
 if __name__ == "__main__":
     from nl_open_data.config import get_config
     from pathlib import Path
 
-    ids = ["83583NED"]
-    state = statline_flow.run(parameters={"ids": ids})
+    # config_file = Path.home() / Path("Projects/nl-open-data/nl_open_data/config.toml")
+    # config = get_config(config_file)
+    state = statline_flow.run(parameters={"source": "cbs"})
     # statline_flow.register(project_name="nl_open_data")
