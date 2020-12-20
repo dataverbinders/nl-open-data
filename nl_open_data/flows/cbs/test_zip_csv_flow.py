@@ -7,7 +7,7 @@ import nl_open_data.utils as nlu
 # from nl_open_data.utils import (
 #     curl_cmd,
 #     csv_to_parquet,
-#     unzip,
+#     unzip,§
 #     list_dir,
 #     upload_to_gcs,
 #     gcs_to_bq,
@@ -28,6 +28,8 @@ for name, _ in inspect.getmembers(nlu, inspect.isfunction):
 # gcs_to_bq = task(gcs_to_bq)
 # create_dir = task(create_dir)
 # remove_dir = task(remove_dir)
+
+unzip.skip_on_upstream_skip = False
 
 curl_download = ShellTask(name="curl_download")
 
