@@ -1,26 +1,33 @@
+import inspect
 from prefect import task, Flow, unmapped, Parameter
 from prefect.tasks.shell import ShellTask
 
-from nl_open_data.utils import (
-    curl_cmd,
-    csv_to_parquet,
-    unzip,
-    list_dir,
-    upload_to_gcs,
-    gcs_to_bq,
-    remove_dir,
-    create_dir,
-)
+import nl_open_data.utils as nlu
+
+# from nl_open_data.utils import (
+#     curl_cmd,
+#     csv_to_parquet,
+#     unzip,
+#     list_dir,
+#     upload_to_gcs,
+#     gcs_to_bq,
+#     remove_dir,
+#     create_dir,
+# )
 
 # Converting functions to tasks
-curl_cmd = task(curl_cmd)
-unzip = task(unzip, skip_on_upstream_skip=False)
-list_dir = task(list_dir)
-csv_to_parquet = task(csv_to_parquet)
-upload_to_gcs = task(upload_to_gcs)
-gcs_to_bq = task(gcs_to_bq)
-create_dir = task(create_dir)
-remove_dir = task(remove_dir)
+for name, _ in inspect.getmembers(nlu, inspect.isfunction):
+    exec(f"{name} = task(nlu.{name})")
+
+
+# curl_cmd = task(curl_cmd)
+# unzip = task(unzip, skip_on_upstream_skip=False)
+# list_dir = task(list_dir)
+# csv_to_parquet = task(csv_to_parquet)
+# upload_to_gcs = task(upload_to_gcs)
+# gcs_to_bq = task(gcs_to_bq)
+# create_dir = task(create_dir)
+# remove_dir = task(remove_dir)
 
 curl_download = ShellTask(name="curl_download")
 
