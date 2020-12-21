@@ -1,7 +1,9 @@
 from typing import Union
 from pathlib import Path
 import os
-from shutil import rmtree
+import shutil
+
+# from shutil import rmtree
 from zipfile import ZipFile
 
 from google.cloud import storage
@@ -9,23 +11,22 @@ from pyarrow import csv
 import pyarrow.parquet as pq
 from prefect.engine.signals import SKIP
 
-
 from nl_open_data.config import Config
-from nl_open_data.utils import (
-    set_gcp,
-    check_bq_dataset,
-    delete_bq_dataset,
-    create_bq_dataset,
-    link_parquet_to_bq_dataset,
-)
-from nl_open_data.utils import create_dir_util as create_dir_fun
+import nl_open_data.utils as nlu
+
+# # BUG: This import raises and error when running within a flow
+# from nl_open_data.utils import (
+#     set_gcp,
+#     check_bq_dataset,
+#     delete_bq_dataset,
+#     create_bq_dataset,
+#     link_parquet_to_bq_dataset,
+#     create_dir_util,
+# )
 
 
 def remove_dir(path: Union[str, Path]) -> None:
-    try:
-        rmtree(Path(path))
-    except:
-        pass
+    shutil.rmtree(Path(path))
     return None
 
 
@@ -107,7 +108,7 @@ def unzip(zipfile: Union[Path, str], out_folder: Union[Path, str] = None):
         zipfile = Path(zipfile)
         out_folder = zipfile.parents[0] / zipfile.stem
 
-    out_folder = create_dir_fun(out_folder)
+    out_folder = nlu.create_dir_util(out_folder)
 
     with ZipFile(zipfile, "r") as zipfile:
         zipfile.extractall(out_folder)
@@ -132,11 +133,13 @@ def csv_to_parquet(
         if out_file is not None:
             out_file = Path(out_file)
         else:
-            folder = create_dir_fun(file.parents[0] / "parquet")
+            folder = nlu.create_dir_util(file.parents[0] / "parquet")
             out_file = folder / (file.stem + ".parquet")
             # out_file = Path("".join(str(file).split(".")[:-1]) + ".parquet")
         table = csv.read_csv(file, parse_options=csv.ParseOptions(delimiter=delimiter))
         pq.write_table(table, out_file)  # TODO -> set proper data types in parquet file
+        os.remove(file)
+
         return out_file
 
     # # If given a zip file with multiple csvs
@@ -176,7 +179,7 @@ def upload_to_gcs(
     to_upload = Path(to_upload)
 
     # Set GCP params
-    gcp = set_gcp(config=config, gcp_env=gcp_env)
+    gcp = nlu.set_gcp(config=config, gcp_env=gcp_env)
     gcs_folder = gcs_folder.rstrip("/")
     gcs = storage.Client(project=gcp.project_id)
     gcs_bucket = gcs.get_bucket(gcp.bucket)
@@ -203,7 +206,7 @@ def gcs_to_bq(
     gcp_env: str = "dev",
     **kwargs,
 ):
-    gcp = set_gcp(config=config, gcp_env=gcp_env)
+    gcp = nlu.set_gcp(config=config, gcp_env=gcp_env)
 
     # If source was given through kwargs, use to cunstruct full dataset_id
     try:
@@ -212,14 +215,14 @@ def gcs_to_bq(
         dataset_id = dataset_name
 
     # Check if dataset exists and delete if it does TODO: maybe delete anyway (deleting currently uses not_found_ok to ignore error if does not exist)
-    if check_bq_dataset(dataset_id=dataset_id, gcp=gcp):
-        delete_bq_dataset(dataset_id=dataset_id, gcp=gcp)
+    if nlu.check_bq_dataset(dataset_id=dataset_id, gcp=gcp):
+        nlu.delete_bq_dataset(dataset_id=dataset_id, gcp=gcp)
 
     # Create dataset and reset dataset_id to new dataset
-    dataset_id = create_bq_dataset(name=dataset_name, gcp=gcp, **kwargs)
+    dataset_id = nlu.create_bq_dataset(name=dataset_name, gcp=gcp, **kwargs)
 
     # Link parquet files in GCS to tables in BQ dataset
-    tables = link_parquet_to_bq_dataset(
+    tables = nlu.link_parquet_to_bq_dataset(
         gcs_folder=gcs_folder, gcp=gcp, dataset_id=dataset_id
     )
 

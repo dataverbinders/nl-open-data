@@ -21,20 +21,15 @@ def create_dir_util(path: Union[Path, str]) -> Path:
     path: Path
         The same input path, to new or existing directory.
     """
-    print()
-    print()
-    print("IN CREATE_DIR_UTIL FUNCTION")
-    print()
-    print()
-    return path
-    # try:
-    #     path = Path(path)
-    #     if not (path.exists() and path.is_dir()):
-    #         path.mkdir(parents=True)
-    #     return path
-    # except TypeError as error:
-    #     print(f"Error trying to find {path}: {error!s}")
-    #     return None
+
+    try:
+        path = Path(path)
+        if not (path.exists() and path.is_dir()):
+            path.mkdir(parents=True)
+        return path
+    except TypeError as error:
+        print(f"Error trying to find {path}: {error!s}")
+        return None
 
 
 def set_gcp(config: Config, gcp_env: str) -> GcpProject:
