@@ -1,9 +1,10 @@
 from typing import Union
 from pathlib import Path
 import os
+
 import shutil
 
-# from shutil import rmtree
+from shutil import rmtree
 from zipfile import ZipFile
 
 from google.cloud import storage
@@ -27,6 +28,11 @@ import nl_open_data.utils as nlu
 
 def remove_dir(path: Union[str, Path]) -> None:
     shutil.rmtree(Path(path))
+    return None
+
+
+def remove_dir_name_import(path: Union[str, Path]) -> None:
+    rmtree(Path(path))
     return None
 
 
