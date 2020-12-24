@@ -1,5 +1,5 @@
+import prefect
 from prefect import task, Flow, unmapped, Parameter
-
 from statline_bq.utils import (
     check_v4,
     get_urls,
@@ -17,9 +17,9 @@ from statline_bq.utils import (
     bq_update_main_table_col_descriptions,
 )
 
-from nl_open_data.utils import remove_dir
+from nl_open_data.tasks import remove_dir
 
-# Converting functions to tasks
+# Converting statline-bq functions to tasks
 check_v4 = task(check_v4)
 get_urls = task(get_urls)
 create_named_dir = task(create_named_dir)
@@ -41,15 +41,18 @@ ids = ["83583NED"]
 
 
 with Flow("CBS") as statline_flow:
-    # odata_version = Parameter("odata_version")
-
     source = Parameter("source", default="cbs")
-    config = Parameter("config")
+    # config = Parameter("config")
     third_party = Parameter("third_party", default=False)
     gcp_env = Parameter("gcp_env", default="dev")
 
+    paths = prefect.config.paths
+    gcp = prefect.config.gcp
+
     odata_versions = check_v4.map(ids)
-    urls = get_urls.map(ids, odata_version=odata_versions)
+    urls = get_urls.map(
+        ids, odata_version=odata_versions, third_party=unmapped(third_party),
+    )
     pq_dir = create_named_dir.map(
         id=ids,
         odata_version=odata_versions,
@@ -127,6 +130,7 @@ if __name__ == "__main__":
     from nl_open_data.config import get_config
     from pathlib import Path
 
-    config_file = Path.home() / Path("Projects/nl-open-data/nl_open_data/config.toml")
-    config = get_config(config_file)
-    state = statline_flow.run(parameters={"config": config, "source": "cbs"})
+    # config_file = Path.home() / Path("Projects/nl-open-data/nl_open_data/config.toml")
+    # config = get_config(config_file)
+    state = statline_flow.run(parameters={"source": "cbs"})
+    # statline_flow.register(project_name="nl_open_data")

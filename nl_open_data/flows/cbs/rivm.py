@@ -1,68 +1,141 @@
-"""Dataflow for regionaal data from Statistics Netherlands (Centraal Bureau voor Statistiek, CBS).
+"""Dataflow for RIVM data using Statline from Statistics Netherlands (Centraal Bureau voor Statistiek, CBS).
 
-Loads the following CBS datasets into BigQuery:
+Loads the following datasets into BigQuery:
 
-- Mapping of all postal code + housenumber to neighbourhood, district and municipalities
-    (Buurt, wijk en gemeente voor postcode-huisnummer (2019)[^adres])
-- Kerncijfers wijken en buurten[^kwb] 
-- Regionale indelingen[^regios]
-- Regionale kerncijfers uit ruim 50 CBS-statistieken[^core], uitgesplitst naar vier regionale niveaus van landsdeel tot gemeente.
-- Gezondheid per wijk en buurt 2016[^rivm] 
-    
-[^adres]: https://www.cbs.nl/nl-nl/maatwerk/2019/42/buurt-wijk-en-gemeente-2019-voor-postcode-huisnummer
-[^kwb]: https://www.cbs.nl/nl-nl/reeksen/kerncijfers-wijken-en-buurten-2004-2019
-[^regios]: https://opendata.cbs.nl/statline/portal.html?_catalog=CBS&_la=nl&tableId=84721NED&_theme=232
-[^core]:  https://opendata.cbs.nl/statline/portal.html?_la=nl&_catalog=CBS&tableId=70072ned&_theme=230
 [^rivm]: https://statline.rivm.nl/#/RIVM/nl/dataset/50052NED/table?ts=1589622516137
 
-
 """
+from prefect import task, Flow, unmapped, Parameter
+from prefect.triggers import all_finished
 
-from pathlib import Path
-import requests
-from zipfile import ZipFile
+from statline_bq.utils import (
+    check_v4,
+    get_urls,
+    create_named_dir,
+    tables_to_parquet,
+    get_dataset_description,
+    write_description_to_file,
+    get_column_descriptions,
+    write_col_decription_to_file,
+    get_file_names,
+    upload_to_gcs,
+    gcs_to_gbq,
+    set_gcp,
+    get_col_descs_from_gcs,
+    bq_update_main_table_col_descriptions,
+)
 
+from nl_open_data.tasks import remove_dir
 
-from google.cloud import bigquery
-import pandas as pd
-import prefect
-from prefect import task, Parameter, Flow, unmapped
-from prefect.tasks.shell import ShellTask
-from prefect.engine.executors import DaskExecutor
-from prefect.triggers import all_successful
-
-from nimbletl.tasks import curl_cmd, cbsodatav3_to_gbq
-from nimbletl.utilities import clean_python_name
-from nl_open_data.config import get_config
+# Converting functions to tasks
+check_v4 = task(check_v4)
+get_urls = task(get_urls)
+create_named_dir = task(create_named_dir)
+tables_to_parquet = task(tables_to_parquet)
+get_dataset_description = task(get_dataset_description)
+write_description_to_file = task(write_description_to_file)
+get_column_descriptions = task(get_column_descriptions)
+write_col_decription_to_file = task(write_col_decription_to_file)
+get_file_names = task(get_file_names)
+upload_to_gcs = task(upload_to_gcs)
+gcs_to_gbq = task(gcs_to_gbq)
+set_gcp = task(set_gcp)
+get_col_descs_from_gcs = task(get_col_descs_from_gcs)
+bq_update_main_table_col_descriptions = task(bq_update_main_table_col_descriptions)
+remove_dir = task(remove_dir, trigger=all_finished)
 
 ODATA_RIVM = "50052NED"  # https://statline.rivm.nl/portal.html?_la=nl&_catalog=RIVM&tableId=50052NED&_theme=72
 
-gcp = Parameter("gcp", required=True)
+with Flow("RIVM") as rivm_flow:
+    ids = ODATA_RIVM
+    source = Parameter("source")
+    config = Parameter("config")
+    third_party = Parameter("third_party")
+    gcp_env = Parameter("gcp_env", default="dev")
 
-
-with Flow("CBS regionaal") as flow:
-    # # TODO: fix UnicodeDecodeError when writing to Google Drive
-    rivm = cbsodatav3_to_gbq(id=ODATA_RIVM, schema="rivm", third_party=True, GCP=gcp)
-    rivm_column_description = column_descriptions(table_id=ODATA_RIVM, third_party=True, schema_bq="rivm", GCP=gcp, upstream_tasks=[rivm])
-
-
-def main(config):
-    """Executes cbs.regionaal.flow in DaskExecutor.
-    """
-
-    """ Trigger in Prefect, load column description first and when finished only then load the data.
-    """
-    flow.set_reference_tasks([rivm_column_description])
-
-    # executor = DaskExecutor(n_workers=8)
-    flow.run(
-        # executor=executor,
-        parameters={
-            "gcp": config.gcp,
-        },
+    odata_versions = check_v4.map(ids)
+    urls = get_urls.map(
+        ids, odata_version=odata_versions, third_party=unmapped(third_party)
     )
-
+    pq_dir = create_named_dir.map(
+        id=ids,
+        odata_version=odata_versions,
+        source=unmapped(source),
+        config=unmapped(config),
+    )
+    files_parquet = tables_to_parquet.map(
+        id=ids,
+        urls=urls,
+        odata_version=odata_versions,
+        source=unmapped(source),
+        pq_dir=pq_dir,
+    )
+    descriptions = get_dataset_description.map(urls=urls, odata_version=odata_versions)
+    desc_files = write_description_to_file.map(
+        description_text=descriptions,
+        id=ids,
+        pq_dir=pq_dir,
+        source=unmapped(source),
+        odata_version=odata_versions,
+        upstream_tasks=[descriptions],
+    )
+    col_descriptions = get_column_descriptions.map(
+        urls=urls, odata_version=odata_versions
+    )
+    col_desc_files = write_col_decription_to_file.map(
+        id=ids,
+        col_desc=col_descriptions,
+        pq_dir=pq_dir,
+        source=unmapped(source),
+        odata_version=odata_versions,
+        upstream_tasks=[col_descriptions],
+    )
+    gcs_folders = upload_to_gcs.map(
+        dir=pq_dir,
+        source=unmapped(source),
+        odata_version=odata_versions,
+        id=ids,
+        config=unmapped(config),
+        gcp_env=unmapped(gcp_env),
+        upstream_tasks=[files_parquet, desc_files, col_desc_files],
+    )
+    file_names = get_file_names.map(files_parquet)
+    dataset_refs = gcs_to_gbq.map(
+        id=ids,
+        source=unmapped(source),
+        odata_version=odata_versions,
+        third_party=unmapped(third_party),
+        config=unmapped(config),
+        gcs_folder=gcs_folders,
+        file_names=file_names,
+        gcp_env=unmapped(gcp_env),
+        upstream_tasks=[gcs_folders],
+    )
+    desc_dicts = get_col_descs_from_gcs.map(
+        id=ids,
+        source=unmapped(source),
+        odata_version=odata_versions,
+        config=unmapped(config),
+        gcp_env=unmapped(gcp_env),
+        gcs_folder=gcs_folders,
+        upstream_tasks=[gcs_folders],
+    )
+    bq_updates = bq_update_main_table_col_descriptions.map(
+        dataset_ref=dataset_refs,
+        descriptions=desc_dicts,
+        config=unmapped(config),
+        gcp_env=unmapped(gcp_env),
+        upstream_tasks=[desc_dicts],
+    )
+    remove_dir.map(pq_dir, upstream_tasks=[gcs_folders])
 
 if __name__ == "__main__":
-    config = get_config("dataverbinders")
-    main(config=config)
+    from nl_open_data.config import get_config
+    from pathlib import Path
+
+    config_file = Path.home() / Path("Projects/nl-open-data/nl_open_data/config.toml")
+    config = get_config(config_file)
+    # state = mlz_flow.run(
+    #     parameters={"config": config, "source": "mlz", "third_party": True}
+    # )
+    rivm_flow.register(project_name="nl_open_data")

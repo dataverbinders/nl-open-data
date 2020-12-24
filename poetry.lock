@@ -164,6 +164,23 @@ diagnostics = ["bokeh (>=1.0.0,!=2.0.0)"]
 distributed = ["distributed (>=2.0)"]
 
 [[package]]
+name = "dataclasses-json"
+version = "0.5.2"
+description = "Easily serialize dataclasses to and from JSON"
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+marshmallow = ">=3.3.0,<4.0.0"
+marshmallow-enum = ">=1.5.1,<2.0.0"
+stringcase = "1.2.0"
+typing-inspect = ">=0.4.0"
+
+[package.extras]
+dev = ["pytest", "ipython", "mypy (>=0.710)", "hypothesis", "portray", "flake8", "simplejson"]
+
+[[package]]
 name = "decorator"
 version = "4.4.2"
 description = "Decorators for Humans"
@@ -598,6 +615,17 @@ dev = ["pytest", "pytz", "simplejson", "mypy (==0.790)", "flake8 (==3.8.4)", "fl
 docs = ["sphinx (==3.3.0)", "sphinx-issues (==1.2.0)", "alabaster (==0.7.12)", "sphinx-version-warning (==1.1.2)", "autodocsumm (==0.2.1)"]
 lint = ["mypy (==0.790)", "flake8 (==3.8.4)", "flake8-bugbear (==20.1.4)", "pre-commit (>=2.4,<3.0)"]
 tests = ["pytest", "pytz", "simplejson"]
+
+[[package]]
+name = "marshmallow-enum"
+version = "1.5.1"
+description = "Enum field for Marshmallow"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+marshmallow = ">=2.0.0"
 
 [[package]]
 name = "marshmallow-oneofschema"
@@ -1322,7 +1350,7 @@ heapdict = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "ad1bc0fa89ca201f7457015f6db77bd238045f6471947a67f89e7cb17300822a"
+content-hash = "cc47c2956f43d6a82a36bbfbd59f8c4be530c24187a346824f198479d677fe0b"
 
 [metadata.files]
 appdirs = [
@@ -1420,6 +1448,10 @@ croniter = [
 dask = [
     {file = "dask-2.30.0-py3-none-any.whl", hash = "sha256:4c215aa55951f570b5a294b2ce964ed801c6efd766231c53447460e60f73ea14"},
     {file = "dask-2.30.0.tar.gz", hash = "sha256:a1669022e25de99b227c3d83da4801f032415962dac431099bf0534648e41a54"},
+]
+dataclasses-json = [
+    {file = "dataclasses-json-0.5.2.tar.gz", hash = "sha256:56ec931959ede74b5dedf65cf20772e6a79764d20c404794cce0111c88c085ff"},
+    {file = "dataclasses_json-0.5.2-py3-none-any.whl", hash = "sha256:b746c48d9d8e884e2a0ffa59c6220a1b21f94d4f9f12c839da0a8a0efd36dc19"},
 ]
 decorator = [
     {file = "decorator-4.4.2-py2.py3-none-any.whl", hash = "sha256:41fa54c2a0cc4ba648be4fd43cff00aedf5b9465c9bf18d64325bc225f08f760"},
@@ -1616,6 +1648,10 @@ markupsafe = [
 marshmallow = [
     {file = "marshmallow-3.9.1-py2.py3-none-any.whl", hash = "sha256:e26763201474b588d144dae9a32bdd945cd26a06c943bc746a6882e850475378"},
     {file = "marshmallow-3.9.1.tar.gz", hash = "sha256:73facc37462dfc0b27f571bdaffbef7709e19f7a616beb3802ea425b07843f4e"},
+]
+marshmallow-enum = [
+    {file = "marshmallow-enum-1.5.1.tar.gz", hash = "sha256:38e697e11f45a8e64b4a1e664000897c659b60aa57bfa18d44e226a9920b6e58"},
+    {file = "marshmallow_enum-1.5.1-py2.py3-none-any.whl", hash = "sha256:57161ab3dbfde4f57adeb12090f39592e992b9c86d206d02f6bd03ebec60f072"},
 ]
 marshmallow-oneofschema = [
     {file = "marshmallow-oneofschema-2.1.0.tar.gz", hash = "sha256:b30cbd21928b6ced3e161186098c4ca48e470ede82c2475f7f4e1bb0edc91e68"},

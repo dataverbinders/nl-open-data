@@ -113,3 +113,6 @@ test.ipynb
 
 # Local temp files
 temp/
+
+# Prefect token
+prefect_cloud_token.txt

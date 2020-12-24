@@ -1,14 +1,8 @@
-import inspect
-from prefect import task, Flow, unmapped, Parameter
+from prefect import Flow, unmapped, Parameter
 from prefect.tasks.shell import ShellTask
 from prefect.triggers import all_finished
 
 import nl_open_data.tasks as nlt
-
-# Converting functions to tasks
-for name, _ in inspect.getmembers(nlt, inspect.isfunction):
-    exec(f"nlt.{name} = task(nlt.{name})")
-    # exec(f"{name} = task(nlt.{name})")
 
 # Allow skipping unzip (if folder already locally unzipped)
 nlt.unzip.skip_on_upstream_skip = False
@@ -31,7 +25,7 @@ with Flow("PC6HUISNR") as zip_flow:
     source = Parameter("source", required=False)
 
     local_dir = nlt.create_dir(local_folder)
-    curl_command = nlt.curl_cmd(url, filepath)
+    curl_command = nlt.curl_cmd(url, filepath, limit_retries=False)
     curl_download = curl_download(command=curl_command, upstream_tasks=[local_dir])
     unzipped_folder = nlt.unzip(filepath, upstream_tasks=[curl_download])
     csv_files = nlt.list_dir(unzipped_folder, upstream_tasks=[unzipped_folder])

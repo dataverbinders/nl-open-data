@@ -2,8 +2,7 @@ from typing import Union
 from pathlib import Path
 import os
 
-import shutil
-
+# import shutil
 from shutil import rmtree
 from zipfile import ZipFile
 
@@ -11,6 +10,7 @@ from google.cloud import storage
 from pyarrow import csv
 import pyarrow.parquet as pq
 from prefect.engine.signals import SKIP
+from prefect import task
 
 from nl_open_data.config import Config
 import nl_open_data.utils as nlu
@@ -26,16 +26,19 @@ import nl_open_data.utils as nlu
 # )
 
 
+# @task
+# def remove_dir(path: Union[str, Path]) -> None:
+#     shutil.rmtree(Path(path))
+#     return None
+
+
+@task
 def remove_dir(path: Union[str, Path]) -> None:
-    shutil.rmtree(Path(path))
-    return None
-
-
-def remove_dir_name_import(path: Union[str, Path]) -> None:
     rmtree(Path(path))
     return None
 
 
+@task
 def create_dir(path: Union[Path, str]) -> Path:
     """Checks whether a path exists and is a directory, and creates it if not.
 
@@ -60,7 +63,10 @@ def create_dir(path: Union[Path, str]) -> Path:
         return None
 
 
-def curl_cmd(url: str, filepath: Union[str, Path], **kwargs) -> str:
+@task
+def curl_cmd(
+    url: str, filepath: Union[str, Path], limit_retries: bool = True, **kwargs
+) -> str:
     """Template for curl command to download file.
 
     Uses `curl -fL -o` that fails silently and follows redirects.
@@ -104,9 +110,14 @@ def curl_cmd(url: str, filepath: Union[str, Path], **kwargs) -> str:
     """
     if Path(filepath).exists():
         raise SKIP(f"File {filepath} already exists.")
-    return f"curl -fL -o {filepath} {url}"
+    return (
+        f"curl -fL -o {filepath} {url}"
+        if limit_retries
+        else f"curl --max-redirs -1 -fL -o {filepath} {url}"
+    )
 
 
+@task
 def unzip(zipfile: Union[Path, str], out_folder: Union[Path, str] = None):
     if out_folder is not None:
         out_folder = Path(out_folder)
@@ -121,11 +132,13 @@ def unzip(zipfile: Union[Path, str], out_folder: Union[Path, str] = None):
     return out_folder
 
 
+@task
 def list_dir(dir: Union[Path, str]):
     full_paths = [Path(dir) / file for file in os.listdir(dir)]
     return full_paths
 
 
+@task
 def csv_to_parquet(
     file: Union[str, Path],
     out_file: Union[str, Path] = None,
@@ -178,6 +191,7 @@ def csv_to_parquet(
         # raise TypeError("Only file extensions '.csv' and '.zip' are allowed")
 
 
+@task
 def upload_to_gcs(
     to_upload: Union[str, Path], gcs_folder: str, config: Config, gcp_env: str = "dev",
 ) -> list:
@@ -205,6 +219,7 @@ def upload_to_gcs(
     return ids
 
 
+@task
 def gcs_to_bq(
     gcs_folder: str,
     dataset_name: str,
