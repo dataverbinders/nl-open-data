@@ -1,8 +1,6 @@
 from typing import Union
 from pathlib import Path
 import os
-
-# import shutil
 from shutil import rmtree
 from zipfile import ZipFile
 
@@ -14,22 +12,6 @@ from prefect import task
 
 from nl_open_data.config import Config
 import nl_open_data.utils as nlu
-
-# # BUG: This import raises and error when running within a flow
-# from nl_open_data.utils import (
-#     set_gcp,
-#     check_bq_dataset,
-#     delete_bq_dataset,
-#     create_bq_dataset,
-#     link_parquet_to_bq_dataset,
-#     create_dir_util,
-# )
-
-
-# @task
-# def remove_dir(path: Union[str, Path]) -> None:
-#     shutil.rmtree(Path(path))
-#     return None
 
 
 @task
