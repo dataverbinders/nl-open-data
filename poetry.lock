@@ -1350,7 +1350,7 @@ heapdict = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "cc47c2956f43d6a82a36bbfbd59f8c4be530c24187a346824f198479d677fe0b"
+content-hash = "828d0ae2099384406ec74549bfcb21ab959a535357ffdc7b1978b1b695ed99de"
 
 [metadata.files]
 appdirs = [
