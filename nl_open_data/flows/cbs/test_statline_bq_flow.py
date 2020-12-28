@@ -1,9 +1,16 @@
-import os
+"""A Prefect flow to download XXXXX and upload to Google Cloud Platform.
 
-os.environ["PREFECT__USER_CONFIG_PATH"] = "nl_open_data/user_config.toml"
+The GCP configuration as well as local paths used for download, can be defined
+in 'user_config.toml', which is imported and coupled to the Prefect config
+object at the first import of Prefect. Therefore, anything that is defined in
+the 'user_config.toml' can be accessed by accessing `prefect.config`. For
+example, `prefect.config.gcp.dev`.
+"""
+
 import prefect
 from box import Box
 from prefect import task, Flow, unmapped, Parameter
+from prefect.run_configs import LocalRun
 from statline_bq.utils import (
     check_v4,
     get_urls,
@@ -39,14 +46,20 @@ set_gcp = task(set_gcp)
 get_col_descs_from_gcs = task(get_col_descs_from_gcs)
 bq_update_main_table_col_descriptions = task(bq_update_main_table_col_descriptions)
 
-with Flow("CBS") as statline_flow:
+with Flow(
+    "CBS",
+    run_config=LocalRun(
+        env={"PREFECT__USER_CONFIG_PATH": "nl_open_data/user_config.toml"}
+    ),
+) as statline_flow:
     source = Parameter("source", default="cbs")
     ids = Parameter("ids")
     config = Parameter("config")
-    # config = config = Box({"paths": prefect.config.paths, "gcp": prefect.config.gcp})
     third_party = Parameter("third_party", default="False")
     gcp_env = Parameter("gcp_env", default="dev")
-
+    # config = Box({"paths": prefect.config.paths, "gcp": prefect.config.gcp})
+    # config = prefect.context
+    # config = get_user_config_from_context("user_config")
     odata_versions = check_v4.map(ids)
     urls = get_urls.map(
         ids, odata_version=odata_versions, third_party=unmapped(third_party),
@@ -121,20 +134,27 @@ with Flow("CBS") as statline_flow:
         gcp_env=unmapped(gcp_env),
         upstream_tasks=[desc_dicts],
     )
-    # remove = remove_dir.map(pq_dir, upstream_tasks=[gcs_folders])
+    remove = remove_dir.map(pq_dir, upstream_tasks=[gcs_folders])
 
 
 if __name__ == "__main__":
-    from nl_open_data.config import get_config
-    from pathlib import Path
+    # from nl_open_data.config import get_config
+    # from pathlib import Path
 
     # config_file = Path.home() / Path(
     #     "Projects/nl-open-data/nl_open_data/user_config.toml"
     # )
-    # config = get_config(config_file)
-    config = Box({"paths": prefect.config.paths, "gcp": prefect.config.gcp})
-    ids = ["83583NED"]
-    # ids = ["83583NED", "83765NED", "84799NED", "84583NED", "84286NED"]
+    # local_config = get_config(config_file)
+    # user_config = Box({"paths": prefect.config.paths, "gcp": prefect.config.gcp})
+    # ids = ["83583NED"]
+    # statline_flow.run_config = LocalRun(
+    #     env={"PREFECT__USER_CONFIG_PATH": "nl_open_data/user_config.toml"}
+    # )
+    # with prefect.context(user_config=config):
+    #     statline_flow.register(project_name="nl_open_data")
+    #     # state = statline_flow.run(parameters={"ids": ids})
 
-    state = statline_flow.run(parameters={"config": config, "ids": ids})
-    # statline_flow.register(project_name="nl_open_data")
+    # state = statline_flow.run(parameters={"config": config, "ids": ids})
+    # with prefect.context(user_config=local_config):
+    #     statline_flow.register(project_name="nl_open_data")
+    statline_flow.register(project_name="nl_open_data")
