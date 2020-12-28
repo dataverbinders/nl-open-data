@@ -230,3 +230,8 @@ def gcs_to_bq(
     )
 
     return tables
+
+
+@task
+def is_true(val):
+    return val
