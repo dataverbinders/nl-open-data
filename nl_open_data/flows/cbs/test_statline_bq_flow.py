@@ -7,9 +7,10 @@ the 'user_config.toml' can be accessed by accessing `prefect.config`. For
 example, `prefect.config.gcp.dev`.
 """
 
-import prefect
+# import prefect
 from box import Box
 from prefect import task, Flow, unmapped, Parameter
+from prefect.executors import DaskExecutor
 from prefect.run_configs import LocalRun
 from statline_bq.utils import (
     check_v4,
@@ -138,15 +139,17 @@ with Flow(
 
 
 if __name__ == "__main__":
-    # from nl_open_data.config import get_config
-    # from pathlib import Path
+    from nl_open_data.config import get_config
+    from pathlib import Path
 
-    # config_file = Path.home() / Path(
-    #     "Projects/nl-open-data/nl_open_data/user_config.toml"
-    # )
-    # local_config = get_config(config_file)
+    config_file = Path.home() / Path(
+        "Projects/nl-open-data/nl_open_data/user_config.toml"
+    )
+    local_config = get_config(config_file)
     # user_config = Box({"paths": prefect.config.paths, "gcp": prefect.config.gcp})
     # ids = ["83583NED"]
+    ids = ["83583NED", "83765NED", "84799NED", "84583NED", "84286NED"]
+    # ids = ["84286NED"]
     # statline_flow.run_config = LocalRun(
     #     env={"PREFECT__USER_CONFIG_PATH": "nl_open_data/user_config.toml"}
     # )
@@ -157,4 +160,7 @@ if __name__ == "__main__":
     # state = statline_flow.run(parameters={"config": config, "ids": ids})
     # with prefect.context(user_config=local_config):
     #     statline_flow.register(project_name="nl_open_data")
+    # statline_flow.register(project_name="nl_open_data")
+    statline_flow.executor = DaskExecutor()
     statline_flow.register(project_name="nl_open_data")
+    # state = statline_flow.run(parameters={"config": local_config, "ids": ids})
