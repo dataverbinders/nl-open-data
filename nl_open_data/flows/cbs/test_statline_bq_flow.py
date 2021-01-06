@@ -46,20 +46,12 @@ set_gcp = task(set_gcp)
 get_col_descs_from_gcs = task(get_col_descs_from_gcs)
 bq_update_main_table_col_descriptions = task(bq_update_main_table_col_descriptions)
 
-with Flow(
-    "CBS",
-    run_config=LocalRun(
-        env={"PREFECT__USER_CONFIG_PATH": "nl_open_data/user_config.toml"}
-    ),
-) as statline_flow:
+with Flow("CBS") as statline_flow:
     source = Parameter("source", default="cbs")
     ids = Parameter("ids")
-    config = Parameter("config")
     third_party = Parameter("third_party", default="False")
     gcp_env = Parameter("gcp_env", default="dev")
-    # config = Box({"paths": prefect.config.paths, "gcp": prefect.config.gcp})
-    # config = prefect.context
-    # config = get_user_config_from_context("user_config")
+    config = Box({"paths": prefect.config.paths, "gcp": prefect.config.gcp})
     odata_versions = check_v4.map(ids)
     urls = get_urls.map(
         ids, odata_version=odata_versions, third_party=unmapped(third_party),
@@ -138,23 +130,7 @@ with Flow(
 
 
 if __name__ == "__main__":
-    # from nl_open_data.config import get_config
-    # from pathlib import Path
 
-    # config_file = Path.home() / Path(
-    #     "Projects/nl-open-data/nl_open_data/user_config.toml"
-    # )
-    # local_config = get_config(config_file)
-    # user_config = Box({"paths": prefect.config.paths, "gcp": prefect.config.gcp})
-    # ids = ["83583NED"]
-    # statline_flow.run_config = LocalRun(
-    #     env={"PREFECT__USER_CONFIG_PATH": "nl_open_data/user_config.toml"}
-    # )
-    # with prefect.context(user_config=config):
-    #     statline_flow.register(project_name="nl_open_data")
-    #     # state = statline_flow.run(parameters={"ids": ids})
-
-    # state = statline_flow.run(parameters={"config": config, "ids": ids})
-    # with prefect.context(user_config=local_config):
-    #     statline_flow.register(project_name="nl_open_data")
-    statline_flow.register(project_name="nl_open_data")
+    ids = ["83583NED"]
+    state = statline_flow.run(parameters={"ids": ids})
+    # statline_flow.register(project_name="nl_open_data")
