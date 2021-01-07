@@ -2,15 +2,16 @@
 
 The GCP configuration as well as local paths used for download, can be defined
 in 'user_config.toml', which is imported and coupled to the Prefect config
-object at the first import of Prefect. Therefore, anything that is defined in
-the 'user_config.toml' can be accessed by accessing `prefect.config`. For
-example, `prefect.config.gcp.dev`.
+object inside 'config.py'. Therefore, anything that is defined in
+the 'user_config.toml' can be accessed by accessing `config`. For
+example, `config.gcp.dev`.
 """
 
-import prefect
+# the config object must be imported from config.py before any Prefect imports
+from nl_open_data.config import config
+
 from box import Box
 from prefect import task, Flow, unmapped, Parameter
-from prefect.run_configs import LocalRun
 from statline_bq.utils import (
     check_v4,
     get_urls,
@@ -28,6 +29,7 @@ from statline_bq.utils import (
     bq_update_main_table_col_descriptions,
 )
 
+# from nl_open_data.config import config
 from nl_open_data.tasks import remove_dir
 
 # Converting statline-bq functions to tasks
@@ -51,7 +53,7 @@ with Flow("CBS") as statline_flow:
     ids = Parameter("ids")
     third_party = Parameter("third_party", default="False")
     gcp_env = Parameter("gcp_env", default="dev")
-    config = Box({"paths": prefect.config.paths, "gcp": prefect.config.gcp})
+    config = Box({"paths": config.paths, "gcp": config.gcp})
     odata_versions = check_v4.map(ids)
     urls = get_urls.map(
         ids, odata_version=odata_versions, third_party=unmapped(third_party),
