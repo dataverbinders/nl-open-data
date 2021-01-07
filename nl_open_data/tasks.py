@@ -9,8 +9,8 @@ from pyarrow import csv
 import pyarrow.parquet as pq
 from prefect.engine.signals import SKIP
 from prefect import task
+from statline_bq.config import Config
 
-from nl_open_data.config import Config
 import nl_open_data.utils as nlu
 
 
