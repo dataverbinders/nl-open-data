@@ -15,6 +15,14 @@ import nl_open_data.utils as nlu
 
 
 @task
+def skip_task(x):
+    if x:
+        raise SKIP
+    else:
+        return None
+
+
+@task
 def remove_dir(path: Union[str, Path]) -> None:
     rmtree(Path(path))
     return None
@@ -230,8 +238,3 @@ def gcs_to_bq(
     )
 
     return tables
-
-
-@task
-def is_true(val):
-    return val

@@ -1,10 +1,11 @@
-"""A Prefect flow to download XXXXX and upload to Google Cloud Platform.
+"""A template of a Prefect flow uploading datasets from statline to Google BigQuery.
 
-The GCP configuration as well as local paths used for download, can be defined
-in 'user_config.toml', which is imported and coupled to the Prefect config
-object inside 'config.py'. Therefore, anything that is defined in
-the 'user_config.toml' can be accessed by accessing `config`. For
-example, `config.gcp.dev`.
+A Prefect based equivalent of the standlone `statline_bq.utils.cbsodata_to_gbq()`.
+
+The GCP configuration as well as local paths used for download, should be defined
+in 'user_config.toml', which is imported and coupled to the Prefect config object
+inside 'config.py'. Therefore, anything that is defined in the 'user_config.toml'
+can be accessed by accessing `config`. For example, `config.gcp.dev`.
 """
 
 # the config object must be imported from config.py before any Prefect imports
@@ -34,7 +35,7 @@ from statline_bq.utils import (
     bq_update_main_table_col_descriptions,
 )
 
-from nl_open_data.tasks import remove_dir, is_true
+from nl_open_data.tasks import remove_dir, skip_task
 
 # Converting statline-bq functions to tasks
 check_gcp_env = task(check_gcp_env)
@@ -56,13 +57,35 @@ gcs_to_gbq = task(gcs_to_gbq)
 get_col_descs_from_gcs = task(get_col_descs_from_gcs)
 bq_update_main_table_col_descriptions = task(bq_update_main_table_col_descriptions)
 
-with Flow("CBS") as statline_flow:
-    source = Parameter("source", default="cbs")
+with Flow("FLOW_NAME") as statline_flow:
+    """[FLOW SUMMARY]
+
+    Parameters
+    ----------
+    id: str
+        CBS Dataset id, i.e. "83583NED".
+
+    source: str, default="cbs"
+        The source of the dataset. Currently only "cbs" is relevant.
+
+    third_party: bool, default=False
+        Flag to indicate dataset is not originally from CBS. Set to true
+        to use dataderden.cbs.nl as base url (not available in v4 yet).
+
+    gcp_env: str
+        determines which GCP configuration to use from config.gcp
+    
+    force : bool, default = False
+        If set to True, processes datasets, even if Modified dates are
+        identical in source and target locations.
+    """
     ids = Parameter("ids")
-    third_party = Parameter("third_party", default="False")
+    source = Parameter("source", default="cbs")
+    third_party = Parameter("third_party", default=False)
     gcp_env = Parameter("gcp_env", default="dev")
-    config = Box({"paths": config.paths, "gcp": config.gcp})
     force = Parameter("force", default=False)
+
+    config = Box({"paths": config.paths, "gcp": config.gcp})
 
     odata_versions = check_v4.map(ids)
     gcp = set_gcp(config, gcp_env)
@@ -72,93 +95,101 @@ with Flow("CBS") as statline_flow:
     source_metas = get_metadata_cbs.map(urls=urls, odata_version=odata_versions)
     gcp_metas = get_metadata_gcp.map(
         id=ids, source=unmapped(source), odata_version=odata_versions, gcp=unmapped(gcp)
-    )
+    )  # TODO: skip if force=True
     cbs_modifieds = get_from_meta.map(meta=source_metas, key=unmapped("Modified"))
-    gcp_modifieds = get_gcp_modified.map(gcp_meta=gcp_metas, force=unmapped(force))
-    # skips = skip_dataset.map(
-    #     cbs_modified=cbs_modifieds, gcp_modified=gcp_modifieds, force=unmapped(force)
-    # )
-    with case(skip_dataset.map(cbs_modified=cbs_modifieds, gcp_modified=gcp_modifieds, force=unmapped(force), False):
-    # with case(skip_dataset, False):
-        pq_dir = create_named_dir.map(
-            id=ids,
-            odata_version=odata_versions,
-            source=unmapped(source),
-            config=unmapped(config),
-        )
-        files_parquet = tables_to_parquet.map(
-            id=ids,
-            urls=urls,
-            odata_version=odata_versions,
-            source=unmapped(source),
-            pq_dir=pq_dir,
-        )
-        col_descriptions = get_column_descriptions.map(
-            urls=urls, odata_version=odata_versions
-        )
-        meta_files = dict_to_json_file.map(
-            id=ids,
-            dict=source_metas,
-            dir=pq_dir,
-            suffix="ColDescriptions",
-            source=unmapped(source),
-            odata_version=odata_versions,
-            # upstream_tasks=[source_metas],
-        )
-        col_desc_files = dict_to_json_file.map(
-            id=ids,
-            dict=col_descriptions,
-            dir=pq_dir,
-            suffix="ColDescriptions",
-            source=unmapped(source),
-            odata_version=odata_versions,
-            # upstream_tasks=[col_descriptions],
-        )
-        gcs_folders = upload_to_gcs.map(
-            dir=pq_dir,
-            source=unmapped(source),
-            odata_version=odata_versions,
-            id=ids,
-            config=unmapped(config),
-            gcp_env=unmapped(gcp_env),
-            upstream_tasks=[files_parquet, col_desc_files],
-        )
-        file_names = get_file_names.map(files_parquet)
-        dataset_refs = gcs_to_gbq.map(
-            id=ids,
-            source=unmapped(source),
-            odata_version=odata_versions,
-            third_party=unmapped(third_party),
-            config=unmapped(config),
-            gcs_folder=gcs_folders,
-            file_names=file_names,
-            gcp_env=unmapped(gcp_env),
-            upstream_tasks=[gcs_folders],
-        )
-        desc_dicts = get_col_descs_from_gcs.map(
-            id=ids,
-            source=unmapped(source),
-            odata_version=odata_versions,
-            config=unmapped(config),
-            gcp_env=unmapped(gcp_env),
-            gcs_folder=gcs_folders,
-            upstream_tasks=[gcs_folders],
-        )
-        bq_updates = bq_update_main_table_col_descriptions.map(
-            dataset_ref=dataset_refs,
-            descriptions=desc_dicts,
-            config=unmapped(config),
-            gcp_env=unmapped(gcp_env),
-            upstream_tasks=[desc_dicts],
-        )
-        remove = remove_dir.map(pq_dir, upstream_tasks=[gcs_folders])
+    gcp_modifieds = get_gcp_modified.map(
+        gcp_meta=gcp_metas, force=unmapped(force)
+    )  # TODO: skip if force=True
+    skips = skip_dataset.map(
+        cbs_modified=cbs_modifieds, gcp_modified=gcp_modifieds, force=unmapped(force)
+    )
+    go_nogo = skip_task.map(x=skips)
+    pq_dir = create_named_dir.map(
+        id=ids,
+        odata_version=odata_versions,
+        source=unmapped(source),
+        config=unmapped(config),
+        upstream_tasks=[go_nogo],
+    )
+    files_parquet = tables_to_parquet.map(
+        id=ids,
+        urls=urls,
+        odata_version=odata_versions,
+        source=unmapped(source),
+        pq_dir=pq_dir,
+        upstream_tasks=[go_nogo],
+    )
+    col_descriptions = get_column_descriptions.map(
+        urls=urls, odata_version=odata_versions, upstream_tasks=[go_nogo]
+    )
+    meta_files = dict_to_json_file.map(
+        id=ids,
+        dict=source_metas,
+        dir=pq_dir,
+        suffix=unmapped("Metadata"),
+        source=unmapped(source),
+        odata_version=odata_versions,
+        upstream_tasks=[go_nogo],
+        # upstream_tasks=[source_metas],
+    )
+    col_desc_files = dict_to_json_file.map(
+        id=ids,
+        dict=col_descriptions,
+        dir=pq_dir,
+        suffix=unmapped("ColDescriptions"),
+        source=unmapped(source),
+        odata_version=odata_versions,
+        upstream_tasks=[go_nogo],
+        # upstream_tasks=[col_descriptions],
+    )
+    gcs_folders = upload_to_gcs.map(
+        dir=pq_dir,
+        source=unmapped(source),
+        odata_version=odata_versions,
+        id=ids,
+        config=unmapped(config),
+        gcp_env=unmapped(gcp_env),
+        upstream_tasks=[files_parquet, col_desc_files, go_nogo],
+    )
+    file_names = get_file_names.map(files_parquet, upstream_tasks=[go_nogo],)
+    dataset_refs = gcs_to_gbq.map(
+        id=ids,
+        source=unmapped(source),
+        odata_version=odata_versions,
+        third_party=unmapped(third_party),
+        config=unmapped(config),
+        gcs_folder=gcs_folders,
+        file_names=file_names,
+        gcp_env=unmapped(gcp_env),
+        upstream_tasks=[gcs_folders, go_nogo],
+    )
+    desc_dicts = get_col_descs_from_gcs.map(
+        id=ids,
+        source=unmapped(source),
+        odata_version=odata_versions,
+        config=unmapped(config),
+        gcp_env=unmapped(gcp_env),
+        gcs_folder=gcs_folders,
+        upstream_tasks=[gcs_folders, go_nogo],
+    )
+    bq_updates = bq_update_main_table_col_descriptions.map(
+        dataset_ref=dataset_refs,
+        descriptions=desc_dicts,
+        config=unmapped(config),
+        gcp_env=unmapped(gcp_env),
+        upstream_tasks=[desc_dicts, go_nogo],
+    )
+    remove = remove_dir.map(
+        pq_dir, upstream_tasks=[gcs_folders]
+    )  # TODO: better(=more reliable) implementation for dir tree removal should be considered.
 
 
 if __name__ == "__main__":
-    # ids = ["83583NED"]
-    ids = ["83583NED", "83765NED", "84799NED", "84583NED", "84286NED"]
-
+    # Register flow
     statline_flow.executor = DaskExecutor()
     statline_flow.register(project_name="nl_open_data")
-    # state = statline_flow.run(parameters={"ids": ids})
 
+    # Run locally
+    # ids = ["83583NED"]
+    # ids = ["83583NED", "83765NED", "84799NED", "84583NED", "84286NED"]
+    # state = statline_flow.run(parameters={"ids": ids, "force": False})

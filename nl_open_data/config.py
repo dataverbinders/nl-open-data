@@ -2,9 +2,6 @@ import os
 from pathlib import Path
 from importlib import import_module
 
-from box import Box
-
-
 CONFIG_TOML = "user_config.toml"
 config_path = Path(__file__).parent / CONFIG_TOML
 
