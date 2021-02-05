@@ -50,7 +50,7 @@ get_from_meta = task(get_from_meta)
 get_gcp_modified = task(get_gcp_modified)
 skip_dataset = task(skip_dataset)
 create_named_dir = task(create_named_dir)
-tables_to_parquet = task(tables_to_parquet)
+tables_to_parquet = task(tables_to_parquet, log_stdout=True)
 get_column_descriptions = task(get_column_descriptions)
 dict_to_json_file = task(dict_to_json_file)
 get_file_names = task(get_file_names)
@@ -190,12 +190,23 @@ with Flow("statline-bq") as statline_flow:
 
 
 if __name__ == "__main__":
+    from dask.distributed import Client, LocalCluster
+
+    cluster = LocalCluster(ip="127.0.0.1:61611")
+    dask_client = Client(cluster)
     # Register flow
-    statline_flow.executor = DaskExecutor()
-    flow_id = statline_flow.register(
-        project_name="nl_open_data", version_group_id="statline_bq"
+    statline_flow.executor = DaskExecutor(
+        address="tcp://127.0.0.1:61611",
+        # cluster_class="LocalCluster",
+        # n_workers=2,
+        debug=True,
+        # processes=True,
+        # silence_logs=100,
     )
-    print(f" └── Registered on: {datetime.today()}")
+    # flow_id = statline_flow.register(
+    #     project_name="nl_open_data", version_group_id="statline_bq"
+    # )
+    # print(f" └── Registered on: {datetime.today()}")
 
     """
     Output last registration
@@ -208,6 +219,6 @@ if __name__ == "__main__":
     """
 
     # Run locally
-    # ids = ["83583ned"]
+    ids = ["83583ned"]
     # ids = ["83583NED", "83765NED", "84799NED", "84583NED", "84286NED"]
-    # state = statline_flow.run(parameters={"ids": ids, "force": False})
+    state = statline_flow.run(parameters={"ids": ids, "force": True})

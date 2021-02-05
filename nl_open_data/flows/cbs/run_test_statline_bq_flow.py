@@ -12,7 +12,7 @@ DATA = ["83583NED"]
 SOURCE = "cbs"
 THIRD_PARTY = False
 GCP_ENV = "dev"
-FORCE = False
+FORCE = True
 
 # run parameters
 STATLINE_VERSION_GROUP_ID = "statline_bq"
