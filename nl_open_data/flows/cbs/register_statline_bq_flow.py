@@ -190,10 +190,7 @@ with Flow("statline-bq") as statline_flow:
 
 
 if __name__ == "__main__":
-    from dask.distributed import Client, LocalCluster
 
-    cluster = LocalCluster(ip="127.0.0.1:61611")
-    dask_client = Client(cluster)
     # Register flow
     statline_flow.executor = DaskExecutor(
         address="tcp://127.0.0.1:61611",
@@ -203,22 +200,11 @@ if __name__ == "__main__":
         # processes=True,
         # silence_logs=100,
     )
-    # flow_id = statline_flow.register(
-    #     project_name="nl_open_data", version_group_id="statline_bq"
-    # )
-    # print(f" └── Registered on: {datetime.today()}")
-
-    """
-    Output last registration
-    ------------------------
-    Flow URL: https://cloud.prefect.io/dataverbinders/flow/eef07631-c5d3-4313-9b2c-41b1e8d180a8
-    └── ID: 2dedcace-27ec-42b9-8be7-dcdd954078e4
-    └── Project: nl_open_data
-    └── Labels: ['tud0029822']
-    └── Registered on: 2021-01-12 14:52:31.387941
-    """
+    flow_id = statline_flow.register(
+        project_name="nl_open_data", version_group_id="statline_bq"
+    )
 
     # Run locally
-    ids = ["83583ned"]
+    # ids = ["83583ned"]
     # ids = ["83583NED", "83765NED", "84799NED", "84583NED", "84286NED"]
-    state = statline_flow.run(parameters={"ids": ids, "force": True})
+    # state = statline_flow.run(parameters={"ids": ids, "force": True})
