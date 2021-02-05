@@ -50,7 +50,6 @@ get_from_meta = task(get_from_meta)
 get_gcp_modified = task(get_gcp_modified)
 skip_dataset = task(skip_dataset)
 create_named_dir = task(create_named_dir)
-get_main_table_shape = task(get_main_table_shape)
 tables_to_parquet = task(tables_to_parquet, log_stdout=True)
 get_column_descriptions = task(get_column_descriptions)
 dict_to_json_file = task(dict_to_json_file)
@@ -195,25 +194,35 @@ with Flow("statline-bq") as statline_flow:
 
 
 if __name__ == "__main__":
+    from dask.distributed import Client, LocalCluster
 
+    cluster = LocalCluster(ip="127.0.0.1:61611")
+    dask_client = Client(cluster)
     # Register flow
-    statline_flow.storage = GCS(
-        project="dataverbinders-dev",
-        bucket="dataverbinders-dev-prefect",  # TODO: Switch to using config (config.gcp.dev.project_id, etc.)
-    )
-    statline_flow.run_config = LocalRun(labels=["nl-open-data-preemptible-1"])
     statline_flow.executor = DaskExecutor(
+        address="tcp://127.0.0.1:61611",
         # cluster_class="LocalCluster",
-        cluster_kwargs={"n_workers": 8},
-        # debug=True,
+        # n_workers=2,
+        debug=True,
         # processes=True,
-        # silence_logs=100, # TODO (?) : find out what the number stands for
+        # silence_logs=100,
     )
-    flow_id = statline_flow.register(
-        project_name="nl_open_data", version_group_id="statline_bq"
-    )
+    # flow_id = statline_flow.register(
+    #     project_name="nl_open_data", version_group_id="statline_bq"
+    # )
+    # print(f" └── Registered on: {datetime.today()}")
+
+    """
+    Output last registration
+    ------------------------
+    Flow URL: https://cloud.prefect.io/dataverbinders/flow/eef07631-c5d3-4313-9b2c-41b1e8d180a8
+    └── ID: 2dedcace-27ec-42b9-8be7-dcdd954078e4
+    └── Project: nl_open_data
+    └── Labels: ['tud0029822']
+    └── Registered on: 2021-01-12 14:52:31.387941
+    """
 
     # Run locally
-    # ids = ["83583ned"]
+    ids = ["83583ned"]
     # ids = ["83583NED", "83765NED", "84799NED", "84583NED", "84286NED"]
-    # state = statline_flow.run(parameters={"ids": ids, "force": True})
+    state = statline_flow.run(parameters={"ids": ids, "force": True})
