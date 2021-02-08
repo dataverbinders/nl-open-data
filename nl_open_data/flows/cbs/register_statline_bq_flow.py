@@ -193,7 +193,7 @@ if __name__ == "__main__":
 
     # Register flow
     statline_flow.executor = DaskExecutor(
-        address="tcp://127.0.0.1:61611",
+        address="tcp://192.168.2.3:8786",
         # cluster_class="LocalCluster",
         # n_workers=2,
         debug=True,
