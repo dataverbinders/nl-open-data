@@ -9,7 +9,7 @@ from dask.distributed import Client as DaskClient, LocalCluster
 TENANT_SLUG = "dataverbinders"
 
 # dask parameters
-IP = "127.0.0.1:61611"
+IP = "127.0.0.1:8888"
 
 # flow parameters
 DATA = ["83583NED", "83765NED"]
@@ -22,12 +22,6 @@ FORCE = True
 STATLINE_VERSION_GROUP_ID = "statline_bq"
 RUN_NAME = f"test_statline-bq_{datetime.today().date()}_{datetime.today().time()}"
 
-prefect_client = PrefectClient()  # Local api key has been stored previously
-prefect_client.login_to_tenant(tenant_slug=TENANT_SLUG)  # For user-scoped API token
-
-cluster = LocalCluster(ip=IP)
-dask_client = DaskClient(cluster)
-
 statline_parameters = {
     "ids": DATA,
     "source": SOURCE,
@@ -35,6 +29,14 @@ statline_parameters = {
     "gcp_env": GCP_ENV,
     "force": FORCE,
 }
-flow_run_id = prefect_client.create_flow_run(
-    version_group_id=STATLINE_VERSION_GROUP_ID, parameters=statline_parameters
-)
+
+if __name__ == "__main__":
+    # cluster = LocalCluster(host=IP)
+    # dask_client = DaskClient(cluster)
+
+    prefect_client = PrefectClient()  # Local api key has been stored previously
+    prefect_client.login_to_tenant(tenant_slug=TENANT_SLUG)  # For user-scoped API token
+
+    flow_run_id = prefect_client.create_flow_run(
+        version_group_id=STATLINE_VERSION_GROUP_ID, parameters=statline_parameters
+    )
