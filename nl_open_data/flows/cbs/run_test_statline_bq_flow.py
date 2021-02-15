@@ -1,7 +1,7 @@
 from nl_open_data.config import config
 from datetime import datetime
 from prefect import Client as PrefectClient
-# from dask.distributed import Client as DaskClient, LocalCluster
+from dask.distributed import Client as DaskClient
 
 # Schedules a flow-run on prefect cloud
 
