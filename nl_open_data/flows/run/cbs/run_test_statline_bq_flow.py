@@ -1,15 +1,15 @@
 from nl_open_data.config import config
 from datetime import datetime
 from prefect import Client as PrefectClient
-from dask.distributed import Client as DaskClient, LocalCluster
+# from dask.distributed import Client as DaskClient, LocalCluster
 
 # Schedules a flow-run on prefect cloud
 
 # Prefect client parameters
 TENANT_SLUG = "dataverbinders"
 
-# dask parameters
-IP = "127.0.0.1:8888"
+# # dask parameters
+# IP = "127.0.0.1:8888"
 
 # flow parameters
 DATA = ["83583NED", "83765NED"]
