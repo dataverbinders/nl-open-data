@@ -196,16 +196,15 @@ with Flow("statline-bq") as statline_flow:
 if __name__ == "__main__":
 
     # Register flow
-    IP = "tcp://192.168.2.27:8786"  # TODO : abstract and automatize ip handover
-    # statline_flow.storage = GCS( # TODO : check if could be utilized to run a flow registered on a different machine
-    #     project="dataverbinders-dev", bucket="dataverbinders-dev-prefect"  # TODO: Test and switch to using config (config.gcp.dev.project_id, etc.)
-    # )
-    statline_flow.run_config = LocalRun()
+    statline_flow.storage = GCS(
+        project="dataverbinders-dev",
+        bucket="dataverbinders-dev-prefect",  # TODO: Switch to using config (config.gcp.dev.project_id, etc.)
+    )
+    statline_flow.run_config = LocalRun(labels=["nl-open-data-vm-2"])
     statline_flow.executor = DaskExecutor(
-        address=IP,
         # cluster_class="LocalCluster",
-        # n_workers=2,
-        debug=True,
+        cluster_kwargs={"n_workers": 8},
+        # debug=True,
         # processes=True,
         # silence_logs=100, # TODO (?) : find out what the number stands for
     )
