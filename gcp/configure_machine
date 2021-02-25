@@ -1,0 +1,58 @@
+## Configuration
+----------------
+
+1. Update machine:
+```bash
+sudo apt update
+````
+2. Install [pyenv](https://github.com/pyenv/pyenv#basic-github-checkout)
+2.1. clone repo:
+  ```bash
+  git clone https://github.com/pyenv/pyenv.git ~/.pyenv
+  ```
+2.2. configure environment:
+  ```bash
+  echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
+  echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
+  echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.bashrc
+  ```
+2.3. Restart shell:
+```bash
+exec "$SHELL"
+```
+2.4. Install python build [dependencies](https://github.com/pyenv/pyenv/wiki#suggested-build-environment):
+```bash
+sudo apt-get install --no-install-recommends make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev -y
+```
+2.5 Install pyenv python version 3.8.5:
+```bash
+pyenv install 3.8.5
+```
+2.6 Set global python version to 3.8.5:
+```bash
+pyenv global 3.8.5
+```
+3. [Install poetry](https://python-poetry.org/docs/#installation):
+3.1. `curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -`
+3.2. set poetry in PATH - `source $HOME/.poetry/env`
+3.3. setup poetry venv inside project directory (`poetry config virtualenvs.in-project true`)
+4. clone nl-open-data repo (`git clone https://github.com/dataverbinders/nl-open-data.git`)
+5. clone statline-bq repo (`git clone https://github.com/dataverbinders/statline-bq.git`)
+6. poetry install nl-open-data
+    6.1. `cd nl_open_data`
+    6.2. `poetry update` (NOTE check satline_bq location is properly defined in nl_open_data/pyproject.toml)
+    6.3. `poetry install`
+7. activate poetry shell in nl-open-data: `poetry shell`
+8. Select an orchestration backend `prefect backend cloud`
+9. orchestrate prefect deployment (https://docs.prefect.io/orchestration/tutorial/overview.html#install-prefect)
+    9.1. provide cloud authentication using 'prefect auth login -t <PERSONAL_ACCESS_TOKEN>'
+    9.2. create a RUNNER token for this instance OR use existing???
+    9.3. Create a config file: ~/.prefect/config.toml, and set the RUNNER token in it:
+```
+$ vi ../.prefect/config.toml
+
+# ~/.prefect/config.toml
+[cloud.agent]
+auth_token = <COPIED_RUNNER_TOKEN>
+```
+10. Setup proper labels for flows (to match agents labels)
