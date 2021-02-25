@@ -29,6 +29,7 @@ from statline_bq.utils import (
     get_gcp_modified,
     skip_dataset,
     create_named_dir,
+    get_main_table_shape,
     tables_to_parquet,
     get_column_descriptions,
     dict_to_json_file,
@@ -52,6 +53,7 @@ get_from_meta = task(get_from_meta)
 get_gcp_modified = task(get_gcp_modified)
 skip_dataset = task(skip_dataset)
 create_named_dir = task(create_named_dir)
+get_main_table_shape = task(get_main_table_shape)
 tables_to_parquet = task(tables_to_parquet, log_stdout=True)
 get_column_descriptions = task(get_column_descriptions)
 dict_to_json_file = task(dict_to_json_file)
@@ -101,7 +103,9 @@ with Flow("statline-bq") as statline_flow:
     urls = get_urls.map(
         ids, odata_version=odata_versions, third_party=unmapped(third_party),
     )
-    source_metas = get_metadata_cbs.map(urls=urls, odata_version=odata_versions)
+    source_metas = get_metadata_cbs.map(
+        id=ids, odata_version=odata_versions, third_party=unmapped(third_party)
+    )
     gcp_metas = get_metadata_gcp.map(
         id=ids, source=unmapped(source), odata_version=odata_versions, gcp=unmapped(gcp)
     )  # TODO: skip if force=True
@@ -123,6 +127,7 @@ with Flow("statline-bq") as statline_flow:
     files_parquet = tables_to_parquet.map(
         id=ids,
         urls=urls,
+        main_table_shape=get_main_table_shape.map(source_metas),
         odata_version=odata_versions,
         third_party=unmapped(third_party),
         source=unmapped(source),
@@ -189,7 +194,7 @@ with Flow("statline-bq") as statline_flow:
     )
     remove = remove_dir.map(
         pq_dir, upstream_tasks=[gcs_folders]
-    )  # TODO: better(=more reliable) implementation for dir tree removal should be considered.
+    )  # TODO: better(=more reliable) implementation for dir tree removal might be considered?
 
 
 if __name__ == "__main__":
