@@ -204,7 +204,7 @@ if __name__ == "__main__":
         project="dataverbinders-dev",
         bucket="dataverbinders-dev-prefect",  # TODO: Switch to using config (config.gcp.dev.project_id, etc.)
     )
-    statline_flow.run_config = LocalRun(labels=["nl-open-data-vm-2"])
+    statline_flow.run_config = LocalRun(labels=["nl-open-data-preemptible-1"])
     statline_flow.executor = DaskExecutor(
         # cluster_class="LocalCluster",
         cluster_kwargs={"n_workers": 8},

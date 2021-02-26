@@ -12,7 +12,7 @@ TENANT_SLUG = "dataverbinders"
 # IP = "127.0.0.1:8888"
 
 # flow parameters
-DATA = ["83583NED"]
+DATA = ["83583NED", "83765NED"]
 SOURCE = "cbs"
 THIRD_PARTY = False
 GCP_ENV = "dev"
@@ -38,5 +38,7 @@ if __name__ == "__main__":
     prefect_client.login_to_tenant(tenant_slug=TENANT_SLUG)  # For user-scoped API token
 
     flow_run_id = prefect_client.create_flow_run(
-        version_group_id=STATLINE_VERSION_GROUP_ID, parameters=statline_parameters
+        version_group_id=STATLINE_VERSION_GROUP_ID,
+        parameters=statline_parameters,
+        run_name=RUN_NAME,
     )
