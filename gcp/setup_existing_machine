@@ -1,0 +1,13 @@
+## Setup pre-configured machine (or booted from image after configuration)
+--------------------------------------------------------------------------
+
+1. update nl-open-data:
+
+```bash
+cd nl_open_data
+git pull
+```
+
+2. Update lockfile: `poetry update`
+3. Install packsges: `poetry install`
+
