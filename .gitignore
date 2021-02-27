@@ -117,3 +117,9 @@ temp/
 
 # Prefect secrets
 secrets/
+
+# Notebooks
+notebooks/
+
+# Logs
+logs/

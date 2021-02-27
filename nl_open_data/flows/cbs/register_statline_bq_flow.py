@@ -15,6 +15,8 @@ from datetime import datetime
 
 # from box import Box
 from prefect import task, Flow, unmapped, Parameter
+from prefect.run_configs import LocalRun
+from prefect.storage import GCS
 from prefect.executors import DaskExecutor
 from statline_bq.utils import (
     check_gcp_env,
@@ -27,6 +29,7 @@ from statline_bq.utils import (
     get_gcp_modified,
     skip_dataset,
     create_named_dir,
+    get_main_table_shape,
     tables_to_parquet,
     get_column_descriptions,
     dict_to_json_file,
@@ -50,7 +53,8 @@ get_from_meta = task(get_from_meta)
 get_gcp_modified = task(get_gcp_modified)
 skip_dataset = task(skip_dataset)
 create_named_dir = task(create_named_dir)
-tables_to_parquet = task(tables_to_parquet)
+get_main_table_shape = task(get_main_table_shape)
+tables_to_parquet = task(tables_to_parquet, log_stdout=True)
 get_column_descriptions = task(get_column_descriptions)
 dict_to_json_file = task(dict_to_json_file)
 get_file_names = task(get_file_names)
@@ -99,7 +103,9 @@ with Flow("statline-bq") as statline_flow:
     urls = get_urls.map(
         ids, odata_version=odata_versions, third_party=unmapped(third_party),
     )
-    source_metas = get_metadata_cbs.map(urls=urls, odata_version=odata_versions)
+    source_metas = get_metadata_cbs.map(
+        id=ids, odata_version=odata_versions, third_party=unmapped(third_party)
+    )
     gcp_metas = get_metadata_gcp.map(
         id=ids, source=unmapped(source), odata_version=odata_versions, gcp=unmapped(gcp)
     )  # TODO: skip if force=True
@@ -121,7 +127,9 @@ with Flow("statline-bq") as statline_flow:
     files_parquet = tables_to_parquet.map(
         id=ids,
         urls=urls,
+        main_table_shape=get_main_table_shape.map(source_metas),
         odata_version=odata_versions,
+        third_party=unmapped(third_party),
         source=unmapped(source),
         pq_dir=pq_dir,
         upstream_tasks=[go_nogo],
@@ -186,28 +194,29 @@ with Flow("statline-bq") as statline_flow:
     )
     remove = remove_dir.map(
         pq_dir, upstream_tasks=[gcs_folders]
-    )  # TODO: better(=more reliable) implementation for dir tree removal should be considered.
+    )  # TODO: better(=more reliable) implementation for dir tree removal might be considered?
 
 
 if __name__ == "__main__":
+
     # Register flow
-    statline_flow.executor = DaskExecutor()
+    statline_flow.storage = GCS(
+        project="dataverbinders-dev",
+        bucket="dataverbinders-dev-prefect",  # TODO: Switch to using config (config.gcp.dev.project_id, etc.)
+    )
+    statline_flow.run_config = LocalRun(labels=["nl-open-data-preemptible-1"])
+    statline_flow.executor = DaskExecutor(
+        # cluster_class="LocalCluster",
+        cluster_kwargs={"n_workers": 8},
+        # debug=True,
+        # processes=True,
+        # silence_logs=100, # TODO (?) : find out what the number stands for
+    )
     flow_id = statline_flow.register(
         project_name="nl_open_data", version_group_id="statline_bq"
     )
-    print(f" └── Registered on: {datetime.today()}")
-
-    """
-    Output last registration
-    ------------------------
-    Flow URL: https://cloud.prefect.io/dataverbinders/flow/eef07631-c5d3-4313-9b2c-41b1e8d180a8
-    └── ID: 2dedcace-27ec-42b9-8be7-dcdd954078e4
-    └── Project: nl_open_data
-    └── Labels: ['tud0029822']
-    └── Registered on: 2021-01-12 14:52:31.387941
-    """
 
     # Run locally
     # ids = ["83583ned"]
     # ids = ["83583NED", "83765NED", "84799NED", "84583NED", "84286NED"]
-    # state = statline_flow.run(parameters={"ids": ids, "force": False})
+    # state = statline_flow.run(parameters={"ids": ids, "force": True})

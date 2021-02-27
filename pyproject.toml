@@ -18,10 +18,13 @@ pyarrow = "^2.0.0"
 bunch = "^1.0.1"
 lxml = "^4.5.2"
 xmltodict = "^0.12.0"
-# statline_bq = {git = "https://github.com/dataverbinders/statline-bq.git", branch = "main"} # takes main branch of statline-bq from github
-statline_bq = {path = "/Users/tslilstrauss/Projects/statline-bq", develop = true} # takes statline-bq from a local path
+statline_bq = {git = "https://github.com/dataverbinders/statline-bq.git", branch = "master"}
+# statline_bq = {git = "https://github.com/dataverbinders/statline-bq.git", branch = "SOME_BRANCH"}
+# statline_bq = {path = "/Users/tslilstrauss/Projects/statline-bq", develop = true} # takes statline-bq from a local path
 pandas = "^1.1.5"
 python-box = "^5.2.0"
+dask = "^2021.1.1"
+distributed = "^2021.1.1"
 
 [tool.poetry.dev-dependencies]
 black = "^19.10b0"
@@ -33,6 +36,7 @@ pdoc3 = "^0.8.4"
 pytest = "^5.2"
 prefect = {extras = ["viz"], version = "^0.14.0"}
 dataclasses-json = "^0.5.2"
+bokeh = "^2.2.3"
 
 
 [tool.dephell.main]
