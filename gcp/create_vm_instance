@@ -1,12 +1,12 @@
 # Create preemptible vm-instance
-# name nl-open-data-preemtible-1 CHANGE FOR FUTURE CREATIONS??? - INSTANCE AND DISK NAME
+# name nl-open-data-preemptible-1 CHANGE FOR FUTURE CREATIONS??? - INSTANCE AND DISK NAME
 # E2-standard-8
 # Allow http
 # 8 vCPUs + 32 GB memory	
 # 100 GB balanced persistent disk
 # Ubuntu 18.04 LTS
 # prefect-flow-runner service account
-gcloud beta compute --project=dataverbinders-dev instances create nl-open-data-preemtible-1 --zone=europe-west4-a --machine-type=e2-standard-8 --subnet=default --network-tier=PREMIUM --no-restart-on-failure --maintenance-policy=TERMINATE --preemptible --service-account=prefect-flow-runner@dataverbinders-dev.iam.gserviceaccount.com --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server --image=ubuntu-1804-bionic-v20210211 --image-project=ubuntu-os-cloud --boot-disk-size=100GB --boot-disk-type=pd-balanced --boot-disk-device-name=nl-open-data-preemtible-1 --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any
+gcloud beta compute --project=dataverbinders-dev instances create nl-open-data-preemptible-1 --zone=europe-west4-a --machine-type=e2-standard-8 --subnet=default --network-tier=PREMIUM --no-restart-on-failure --maintenance-policy=TERMINATE --preemptible --service-account=prefect-flow-runner@dataverbinders-dev.iam.gserviceaccount.com --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server --image=ubuntu-1804-bionic-v20210211 --image-project=ubuntu-os-cloud --boot-disk-size=100GB --boot-disk-type=pd-balanced --boot-disk-device-name=nl-open-data-preemptible-1 --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any
 
 # Create same hardware, from configured image with nl-open-data and statline-bq
-gcloud beta compute --project=dataverbinders-dev instances create nl-open-data-preemtible-2 --zone=europe-west4-a --machine-type=e2-standard-8 --subnet=default --network-tier=PREMIUM --no-restart-on-failure --maintenance-policy=TERMINATE --preemptible --service-account=prefect-flow-runner@dataverbinders-dev.iam.gserviceaccount.com --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server --image=nl-open-data-preemptible-1 --image-project=dataverbinders-dev --boot-disk-size=100GB --boot-disk-type=pd-balanced --boot-disk-device-name=nl-open-data-preemtible-2 --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any
+gcloud beta compute --project=dataverbinders-dev instances create nl-open-data-preemptible-2 --zone=europe-west4-a --machine-type=e2-standard-8 --subnet=default --network-tier=PREMIUM --no-restart-on-failure --maintenance-policy=TERMINATE --preemptible --service-account=prefect-flow-runner@dataverbinders-dev.iam.gserviceaccount.com --scopes=https://www.googleapis.com/auth/cloud-platform --tags=http-server --image=nl-open-data-preemptible --image-project=dataverbinders-dev --boot-disk-size=100GB --boot-disk-type=pd-balanced --boot-disk-device-name=nl-open-data-preemptible-2 --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any
