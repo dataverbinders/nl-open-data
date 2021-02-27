@@ -79,7 +79,7 @@ with Flow("zipped_csv") as zip_flow:
     tables = nlt.gcs_to_bq(
         gcs_folder=gcs_folder,
         dataset_name=bq_dataset_name,
-        config=config,
+        config=config,  # TODO: Why is this not unmapped, and it works??
         gcp_env=gcp_env,
         source=source,
         description=bq_dataset_description,

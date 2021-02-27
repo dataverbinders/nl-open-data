@@ -2,9 +2,13 @@ from typing import Union
 from pathlib import Path
 import os
 from shutil import rmtree
+from tempfile import gettempdir
 from zipfile import ZipFile
+import requests
 
 from google.cloud import storage
+import pandas as pd
+from pyarrow import Table as PA_Table
 from pyarrow import csv
 import pyarrow.parquet as pq
 from prefect.engine.signals import SKIP
@@ -128,6 +132,15 @@ def curl_cmd(
 
 
 @task
+def get_from_cbs_url(url: str, get_value_only: bool):
+    r = requests.get(url).json()
+    if get_value_only:
+        return r["value"]
+    else:
+        return r
+
+
+@task
 def unzip(zipfile: Union[Path, str], out_folder: Union[Path, str] = None):
     if out_folder is not None:
         out_folder = Path(out_folder)
@@ -199,6 +212,19 @@ def csv_to_parquet(
         raise TypeError("Only file extensions '.csv' are allowed")
 
         # raise TypeError("Only file extensions '.csv' and '.zip' are allowed")
+
+
+@task
+def list_of_dicts_to_parquet(struct: list, file_name: str, folder_name: str = None):
+    df = pd.DataFrame(struct)
+    table = PA_Table.from_pandas(df)
+    if folder_name:
+        pq_file = Path(gettempdir()) / Path(folder_name + ".parquet") / Path(file_name)
+    else:
+        pq_file = Path(gettempdir()) / Path(file_name + ".parquet")
+    with open(pq_file, "wb+") as f:
+        pq.write_table(table, f)
+    return pq_file
 
 
 @task
