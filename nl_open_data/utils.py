@@ -118,7 +118,10 @@ def create_bq_dataset(
     client = bigquery.Client(project=gcp.project_id)
 
     # Set dataset_id to the ID of the dataset to create.
-    dataset_id = f"{client.project}.{source}_{name}"
+    if source:
+        dataset_id = f"{client.project}.{source}_{name}"
+    else:
+        dataset_id = f"{client.project}.{name}"
 
     # Construct a full Dataset object to send to the API.
     dataset = bigquery.Dataset(dataset_id)
