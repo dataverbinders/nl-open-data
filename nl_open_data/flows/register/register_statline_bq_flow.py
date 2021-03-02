@@ -91,9 +91,9 @@ with Flow("statline-bq") as statline_flow:
     gcp_env = Parameter("gcp_env", default="dev")
     force = Parameter("force", default=False)
 
-    ids = upper.map(
-        ids
-    )  # TODO: Do we need a different variable name here (ids_upper = ...)?
+    # ids = upper.map(
+    #     ids
+    # )  # TODO: Do we need a different variable name here (ids_upper = ...)?
     gcp_env = lower(gcp_env)  # TODO: Do we need a different variable name here?
     odata_versions = check_v4.map(ids)
     gcp = set_gcp(config, gcp_env)
