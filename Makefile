@@ -1,4 +1,4 @@
-.PHONY: clean clean-test clean-pyc clean-build docs help
+.PHONY: clean clean-test clean-pyc clean-build docs help start-remote-agent
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -22,6 +22,12 @@ endef
 export PRINT_HELP_PYSCRIPT
 
 BROWSER := python -c "$$BROWSER_PYSCRIPT"
+INSTANCE_NAME := nl-open-data-preemptible-1 # To override at runtime use (for example) `make start-remote-agent INSTANCE_NAME=nl-open-data-preemptible-2`
+
+start-remote-agent: ## Spin up instance, update libraries and start up local prefect agent
+	gcloud compute instances start $(INSTANCE_NAME)
+	sleep 30
+	gcloud compute ssh amitgalmail@$(INSTANCE_NAME) --command '. $$HOME/.ssh_init && cd nl-open-data && git pull && poetry update && poetry install &&  . .venv/bin/activate && prefect agent local start'
 
 help:
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
@@ -73,8 +79,8 @@ docs: ## generate Sphinx HTML documentation, including API docs
 	$(MAKE) -C docs html
 	$(BROWSER) docs/_build/html/index.html
 
-pdoc:
-	pdoc --html --output-dir ./docs --force nl_open_data
+# pdoc:
+# 	pdoc --html --output-dir ./docs --force nl_open_data
 
 servedocs: docs ## compile the docs watching for changes
 	watchmedo shell-command -p '*.rst' -c '$(MAKE) -C docs html' -R -D .
