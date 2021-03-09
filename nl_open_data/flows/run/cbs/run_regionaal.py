@@ -19,7 +19,7 @@ TENANT_SLUG = "dataverbinders"
 # flow parameters
 ODATA_REGIONAAL = [  # TODO: check datasets, add and organize
     # Regionale kerncijfers Nederland
-    "70072NED",
+    "70072ned",
     # Kerncijfers wijken en buurten
     "84583NED",  # 2019
     "84286NED",  # 2018
