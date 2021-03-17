@@ -78,7 +78,8 @@ with Flow("statline-bq") as statline_flow:
         to use dataderden.cbs.nl as base url (not available in v4 yet).
 
     gcp_env: str
-        determines which GCP configuration to use from config.gcp
+        determines which GCP configuration to use from config.gcp.
+        Options: ['dev', 'test', 'prod']
     
     force : bool, default = False
         If set to True, processes datasets, even if Modified dates are
@@ -91,12 +92,9 @@ with Flow("statline-bq") as statline_flow:
     gcp_env = Parameter("gcp_env", default="dev")
     force = Parameter("force", default=False)
 
-    # ids = upper.map(
-    #     ids
-    # )  # TODO: Do we need a different variable name here (ids_upper = ...)?
-    gcp_env = lower(gcp_env)  # TODO: Do we need a different variable name here?
+    gcp_env = lower(gcp_env)
     odata_versions = check_v4.map(ids)
-    gcp = set_gcp(config, gcp_env)
+    gcp = set_gcp(config, gcp_env, source)
     urls = get_urls.map(
         ids, odata_version=odata_versions, third_party=unmapped(third_party),
     )
@@ -157,36 +155,40 @@ with Flow("statline-bq") as statline_flow:
         source=unmapped(source),
         odata_version=odata_versions,
         id=ids,
-        config=unmapped(config),
-        gcp_env=unmapped(gcp_env),
-        upstream_tasks=[files_parquet, col_desc_files, meta_files, go_nogo],
+        # config=unmapped(config),
+        gcp=unmapped(gcp),
+        # gcp_env=unmapped(gcp_env),
+        upstream_tasks=[files_parquet, meta_files, col_desc_files, go_nogo],
     )
     file_names = get_file_names.map(files_parquet, upstream_tasks=[go_nogo],)
     dataset_refs = gcs_to_gbq.map(
         id=ids,
         source=unmapped(source),
         odata_version=odata_versions,
-        third_party=unmapped(third_party),
-        config=unmapped(config),
+        # third_party=unmapped(third_party),
+        # config=unmapped(config),
         gcs_folder=gcs_folders,
         file_names=file_names,
-        gcp_env=unmapped(gcp_env),
+        gcp=unmapped(gcp),
+        # gcp_env=unmapped(gcp_env),
         upstream_tasks=[gcs_folders, go_nogo],
     )
     desc_dicts = get_col_descs_from_gcs.map(
         id=ids,
         source=unmapped(source),
         odata_version=odata_versions,
-        config=unmapped(config),
-        gcp_env=unmapped(gcp_env),
+        gcp=unmapped(gcp),
+        # config=unmapped(config),
+        # gcp_env=unmapped(gcp_env),
         gcs_folder=gcs_folders,
         upstream_tasks=[gcs_folders, go_nogo],
     )
     bq_updates = bq_update_main_table_col_descriptions.map(
         dataset_ref=dataset_refs,
         descriptions=desc_dicts,
-        config=unmapped(config),
-        gcp_env=unmapped(gcp_env),
+        gcp=unmapped(gcp),
+        # config=unmapped(config),
+        # gcp_env=unmapped(gcp_env),
         upstream_tasks=[desc_dicts, go_nogo],
     )
     remove = remove_dir.map(
@@ -201,7 +203,7 @@ if __name__ == "__main__":
         project="dataverbinders-dev",
         bucket="dataverbinders-dev-prefect",  # TODO: Switch to using config (config.gcp.dev.project_id, etc.)
     )
-    statline_flow.run_config = LocalRun(labels=["nl-open-data-preemptible-1"])
+    statline_flow.run_config = LocalRun(labels=["nl-open-data-vm-1"])
     statline_flow.executor = DaskExecutor(
         # cluster_class="LocalCluster",
         cluster_kwargs={"n_workers": 8},
@@ -213,7 +215,26 @@ if __name__ == "__main__":
         project_name="nl_open_data", version_group_id="statline_bq"
     )
 
-    # Run locally
-    # ids = ["83583ned"]
+    # # Run locally
+    # # ids = ["83583NED"]
     # ids = ["83583NED", "83765NED", "84799NED", "84583NED", "84286NED"]
-    # state = statline_flow.run(parameters={"ids": ids, "force": True})
+    # mlz_ids = ["40015NED", "40080NED", "40081NED"]
+    # state = statline_flow.run(
+    #     parameters={
+    #         "ids": ids,
+    #         "source": "cbs",
+    #         "third_party": False,
+    #         "force": True,
+    #         "gcp_env": "prod",
+    #     }
+    # )
+    # state = statline_flow.run(
+    #     parameters={
+    #         "ids": mlz_ids,
+    #         "source": "mlz",
+    #         "third_party": True,
+    #         "force": True,
+    #         "gcp_env": "prod",
+    #     }
+    # )
+
