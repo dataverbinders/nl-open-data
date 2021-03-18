@@ -1,4 +1,4 @@
-"""A template of a Prefect flow uploading datasets from statline to Google BigQuery.
+"""Registering a Prefect flow uploading datasets from statline to Google BigQuery.
 
 A Prefect based equivalent of the standlone `statline_bq.utils.cbsodata_to_gbq()`.
 
@@ -203,6 +203,7 @@ if __name__ == "__main__":
         project="dataverbinders-dev",
         bucket="dataverbinders-dev-prefect",  # TODO: Switch to using config (config.gcp.dev.project_id, etc.)
     )
+    # statline_flow.run_config = LocalRun(labels=["nl-open-data-preemptible-1"])
     statline_flow.run_config = LocalRun(labels=["nl-open-data-vm-1"])
     statline_flow.executor = DaskExecutor(
         # cluster_class="LocalCluster",
