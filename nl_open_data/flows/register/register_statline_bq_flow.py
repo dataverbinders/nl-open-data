@@ -159,7 +159,7 @@ with Flow("statline-bq") as statline_flow:
         id=ids,
         config=unmapped(config),
         gcp_env=unmapped(gcp_env),
-        upstream_tasks=[files_parquet, col_desc_files, go_nogo],
+        upstream_tasks=[files_parquet, col_desc_files, meta_files, go_nogo],
     )
     file_names = get_file_names.map(files_parquet, upstream_tasks=[go_nogo],)
     dataset_refs = gcs_to_gbq.map(
