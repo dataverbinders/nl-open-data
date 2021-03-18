@@ -1,4 +1,4 @@
-"""A template of a Prefect Flow downloading a zipped folder with csv files.
+"""Registering a Prefect Flow downloading a zipped folder with csv files.
 
 TODO: Docstring
 
@@ -7,11 +7,12 @@ TODO: Docstring
 from nl_open_data.config import config
 
 from pathlib import Path
-from datetime import datetime
 
 from prefect import Flow, unmapped, Parameter
 from prefect.tasks.shell import ShellTask
 from prefect.triggers import all_finished
+from prefect.run_configs import LocalRun
+from prefect.storage import GCS
 from prefect.executors import DaskExecutor
 
 import nl_open_data.tasks as nlt
@@ -89,21 +90,19 @@ with Flow("zipped_csv") as zip_flow:
 
 if __name__ == "__main__":
     # Register flow
-    zip_flow.executor = DaskExecutor()
-    print("Output last registration")
-    print("------------------------")
+    zip_flow.storage = GCS(
+        project="dataverbinders-dev",
+        bucket="dataverbinders-dev-prefect",  # TODO: Switch to using config (config.gcp.dev.project_id, etc.)
+    )
+    # st_catalogs_flow.run_config = LocalRun(labels=["nl-open-data-preemptible-1"])
+    zip_flow.run_config = LocalRun(labels=["nl-open-data-vm-1"])
+    zip_flow.executor = DaskExecutor(
+        # cluster_class="LocalCluster",
+        cluster_kwargs={"n_workers": 8},
+        # debug=True,
+        # processes=True,
+        # silence_logs=100, # TODO (?) : find out what the number stands for
+    )
     flow_id = zip_flow.register(
         project_name="nl_open_data", version_group_id="zipped_csv"
     )
-    print(f" └── Registered on: {datetime.today()}")
-
-    """
-Output last registration
-------------------------
-Result check: OK
-Flow URL: https://cloud.prefect.io/dataverbinders/flow/24e3c567-88c7-4a6e-8333-72a9cd1abebd
- └── ID: b91257e3-7c63-468c-9460-c7403e602a0a
- └── Project: nl_open_data
- └── Labels: ['tud0029822']
- └── Registered on: 2021-01-12 18:27:56.586313
-    """
