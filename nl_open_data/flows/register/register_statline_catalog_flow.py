@@ -1,3 +1,8 @@
+"""Registering a Prefect Flow uploading CBS catalogs to BQ.
+
+TODO: Docstring
+
+"""
 # the config object must be imported from config.py before any Prefect imports
 from nl_open_data.config import config
 
@@ -40,7 +45,8 @@ if __name__ == "__main__":
         project="dataverbinders-dev",
         bucket="dataverbinders-dev-prefect",  # TODO: Switch to using config (config.gcp.dev.project_id, etc.)
     )
-    st_catalogs_flow.run_config = LocalRun(labels=["nl-open-data-preemptible-1"])
+    # st_catalogs_flow.run_config = LocalRun(labels=["nl-open-data-preemptible-1"])
+    st_catalogs_flow.run_config = LocalRun(labels=["nl-open-data-vm-1"])
     st_catalogs_flow.executor = DaskExecutor(
         # cluster_class="LocalCluster",
         cluster_kwargs={"n_workers": 8},
