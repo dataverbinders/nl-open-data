@@ -41,7 +41,7 @@ prefect_client.login_to_tenant(tenant_slug=TENANT_SLUG)  # For user-scoped API t
 DATA = cbs_v3_ids
 SOURCE = "cbs"  # TODO: connect to sources above
 THIRD_PARTY = False
-GCP_ENV = "dev"
+GCP_ENV = "prod"
 FORCE = False
 
 ## Schedule flow-runs

@@ -56,7 +56,7 @@ for source in external_v3_sources_set:
     DATA = external_v3_ids[source]
     SOURCE = source.lower()
     THIRD_PARTY = True
-    GCP_ENV = "dev"
+    GCP_ENV = "prod"
     FORCE = False
 
     for i in range(len(DATA) // 10 + 1):
