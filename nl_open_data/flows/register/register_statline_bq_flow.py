@@ -196,38 +196,38 @@ with Flow("statline-bq") as statline_flow:
     )  # TODO: better(=more reliable) implementation for dir tree removal might be considered?
 
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
 
-#     # Register flow
-#     statline_flow.storage = GCS(
-#         project="dataverbinders-dev",
-#         bucket="dataverbinders-dev-prefect",  # TODO: Switch to using config (config.gcp.dev.project_id, etc.)
-#     )
-#     # statline_flow.run_config = LocalRun(labels=["nl-open-data-preemptible-1"])
-#     statline_flow.run_config = LocalRun(labels=["nl-open-data-vm-1"])
-#     statline_flow.executor = DaskExecutor(
-#         # cluster_class="LocalCluster",
-#         cluster_kwargs={"n_workers": 8},
-#         # debug=True,
-#         # processes=True,
-#         # silence_logs=100, # TODO (?) : find out what the number stands for
-#     )
-#     flow_id = statline_flow.register(
-#         project_name="nl_open_data", version_group_id="statline_bq"
-#     )
+    # Register flow
+    statline_flow.storage = GCS(
+        project="dataverbinders-dev",
+        bucket="dataverbinders-dev-prefect",  # TODO: Switch to using config (config.gcp.dev.project_id, etc.)
+    )
+    # statline_flow.run_config = LocalRun(labels=["nl-open-data-preemptible-1"])
+    statline_flow.run_config = LocalRun(labels=["nl-open-data-vm-1"])
+    statline_flow.executor = DaskExecutor(
+        # cluster_class="LocalCluster",
+        cluster_kwargs={"n_workers": 8},
+        # debug=True,
+        # processes=True,
+        # silence_logs=100, # TODO (?) : find out what the number stands for
+    )
+    flow_id = statline_flow.register(
+        project_name="nl_open_data", version_group_id="statline_bq"
+    )
 
 # Run locally
 # ids = ["83583NED"]
-ids = ["83583NED", "83765NED", "84799NED", "84583NED", "84286NED"]
+# ids = ["83583NED", "83765NED", "84799NED", "84583NED", "84286NED"]
 # mlz_ids = ["40015NED", "40080NED", "40081NED"]
-state = statline_flow.run(
-    parameters={
-        "ids": ids,
-        "source": "cbs",
-        "third_party": False,
-        "force": True,
-        "gcp_env": "dev",
-    }
+# state = statline_flow.run(
+#     parameters={
+#         "ids": ids,
+#         "source": "cbs",
+#         "third_party": False,
+#         "force": True,
+#         "gcp_env": "dev",
+#     }
 # )
 # state = statline_flow.run(
 #     parameters={
