@@ -25,6 +25,14 @@ def path_wrap(string):
 
 
 @task
+def get_parent(dir: Union[str, Path], level: int = 1):
+    dir = Path(dir)
+    for _ in range(level):
+        dir = dir.parent
+    return dir
+
+
+@task
 def get_filename_from_url(url):
     return url.split("/")[-1]
 
