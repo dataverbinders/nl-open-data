@@ -4,6 +4,7 @@ import os
 from shutil import rmtree
 from tempfile import gettempdir
 from zipfile import ZipFile
+from prefect.triggers import all_finished
 import requests
 
 from google.cloud import storage
@@ -44,6 +45,25 @@ def skip_task(x):
         raise SKIP
     else:
         return None
+
+
+# TODO: Check if there's a better way here? It seems odd we would hve to have 2 tasks only to change the trigger?
+@task(trigger=all_finished)
+def clean_up_dir(path: Union[str, Path]) -> None:
+    """"Same as remove_dir, but always runs at end of flow."
+
+    Parameters
+    ----------
+    path : Union[str, Path]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+    rmtree(Path(path))
+    return None
 
 
 @task
