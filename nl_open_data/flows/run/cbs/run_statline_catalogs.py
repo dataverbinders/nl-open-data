@@ -17,14 +17,20 @@ CBS_CATALOGS = {
 }
 URLS = list(CBS_CATALOGS.values())
 NAMES = list(CBS_CATALOGS.keys())
-GCP_ENV = "dev"
+GCP_ENV = "prod"
+PROD_ENV = "dwh"
 
 
 # run parameters
 VERSION_GROUP_ID = "statline_catalogs"
 RUN_NAME = f"statline_catalogs_{datetime.today().date()}_{datetime.today().time()}"
 
-parameters = {"catalog_urls": URLS, "catalog_names": NAMES, "gcp_env": GCP_ENV}
+parameters = {
+    "catalog_urls": URLS,
+    "catalog_names": NAMES,
+    "gcp_env": GCP_ENV,
+    "prod_env": PROD_ENV,
+}
 
 if __name__ == "__main__":
     prefect_client = PrefectClient()  # Local api key has been stored previously
