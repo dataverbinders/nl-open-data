@@ -32,14 +32,57 @@ def create_dir_util(path: Union[Path, str]) -> Path:
         return None
 
 
-def set_gcp(config: Config, gcp_env: str) -> GcpProject:
-    gcp_env = gcp_env.lower()
+def set_gcp(
+    config: Config, gcp_env: str, source: str = None, prod_env: str = None
+) -> GcpProject:
+    # TODO: Complete docstring
+    """Sets the desired GCP donciguration
+
+    Parameters
+    ----------
+    config : Config
+        `statline_bq.config.Config` object
+    gcp_env : str
+        String representing the desired environment between ['dev', 'test', 'prod']
+    source : str
+        The high level source of the dataset ("external" or "cbs")
+
+    Returns
+    -------
+    GcpProject
+        A GcpProject class object holding GCP Project parameters (project id, bucket)
+    """
     config_envs = {
         "dev": config.gcp.dev,
         "test": config.gcp.test,
-        "prod": config.gcp.prod,
+        "prod": {
+            "cbs": config.gcp.prod.cbs_dl,
+            "external": config.gcp.prod.external_dl,
+            "dwh": config.gcp.prod.dwh,
+        },
     }
-    return config_envs[gcp_env]
+    gcp_env = gcp_env.lower()
+    ## For "dev" or "test" envs
+    if gcp_env != "prod":
+        return config_envs[gcp_env]
+    ## For "prod" env
+    elif source is None and prod_env is None:
+        raise ValueError(
+            "One of 'source' OR 'prod_env' MUST be specified for 'prod' env"
+        )
+    elif source is not None and prod_env is not None:
+        raise ValueError(
+            "ONLY ONE of 'source' OR 'prod_env' can be specified for 'prod' env"
+        )
+    ## If source is specified, inner "prod" selection is automatic
+    # currently, only "cbs" and external applies (within "external", different sources are handled later, not here)
+    elif source is not None:
+        source = source.lower()
+        return config_envs[gcp_env][source]
+    ## A specific prod_env can also be selected manually
+    elif prod_env is not None:
+        prod_env = prod_env.lower()
+        return config_envs[gcp_env][prod_env]
 
 
 def check_bq_dataset(dataset_id: str, gcp: GcpProject) -> bool:
