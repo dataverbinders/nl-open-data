@@ -7,6 +7,7 @@ TODO: Docstring
 from nl_open_data.config import config
 
 from pathlib import Path
+from tempfile import gettempdir
 
 from prefect import Flow, unmapped, Parameter
 from prefect.tasks.shell import ShellTask
@@ -48,7 +49,7 @@ with Flow("zipped_csv") as zip_flow:
 
     url = Parameter("url")
     local_folder = Parameter(
-        "local_folder", default=str(Path(__file__).parent / config.paths.temp)
+        "local_folder", default=str(Path(gettempdir()) / Path("zip_csv_flow"))
     )
     csv_delimiter = Parameter("csv_delimiter", default=".")
     gcs_folder = Parameter("gcs_folder")
@@ -103,6 +104,32 @@ if __name__ == "__main__":
         # processes=True,
         # silence_logs=100, # TODO (?) : find out what the number stands for
     )
-    flow_id = zip_flow.register(
-        project_name="nl_open_data", version_group_id="zipped_csv"
+    # flow_id = zip_flow.register(
+    #     project_name="nl_open_data", version_group_id="zipped_csv"
+    # )
+
+    # Run Locally
+    # flow parameters
+    SOURCE = "cbs"
+    URL_PC6HUISNR = (
+        "https://www.cbs.nl/-/media/_excel/2019/42/2019-cbs-pc6huisnr20190801_buurt.zip"
+    )
+    # LOCAL_FOLDER = str(
+    #     Path(__file__).parent / config.paths.temp
+    # )  # TODO: organize better for deployment?
+    CSV_DELIMITER = ";"
+    BQ_DATASET_NAME = "buurt_wijk_gemeente_pc"
+    GCS_FOLDER = SOURCE + "/" + BQ_DATASET_NAME
+    BQ_DATASET_DESCRIPTION = "CBS definitions for geographical division on various granularity levels"  # TODO: Better description
+
+    zip_flow.run(
+        parameters={
+            "url": URL_PC6HUISNR,
+            # "local_folder": LOCAL_FOLDER,
+            "csv_delimiter": CSV_DELIMITER,
+            "gcs_folder": GCS_FOLDER,
+            "bq_dataset_name": BQ_DATASET_NAME,
+            "bq_dataset_description": BQ_DATASET_DESCRIPTION,
+            "source": SOURCE,
+        }
     )
