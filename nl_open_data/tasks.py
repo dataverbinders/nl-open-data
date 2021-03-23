@@ -243,7 +243,7 @@ def csv_to_parquet(
 
 
 @task
-def list_of_dicts_to_parquet(struct: list, file_name: str, folder_name: str = None):
+def struct_to_parquet(struct: list, file_name: str, folder_name: str = None):
     df = pd.DataFrame(struct)
     table = PA_Table.from_pandas(df)
     if folder_name:

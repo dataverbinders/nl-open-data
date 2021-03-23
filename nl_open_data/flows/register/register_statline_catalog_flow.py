@@ -20,10 +20,10 @@ with Flow("statline-catalogs") as st_catalogs_flow:
     prod_env = Parameter("prod_env", default=None)
 
     catalogs = nlt.get_from_cbs_url.map(url=catalog_urls, get_value_only=unmapped(True))
-    catalog_files = nlt.list_of_dicts_to_parquet.map(  # TODO - verify that the order remains intact
+    catalog_files = nlt.struct_to_parquet.map(  # TODO - verify that the order remains intact
         struct=catalogs, file_name=catalog_names
     )
-    # catalog_files = list_of_dicts_to_parquet.map(  # TODO - verify that the order remains intact
+    # catalog_files = struct_to_parquet.map(  # TODO - verify that the order remains intact
     #     struct=catalogs, folder_name=unmapped("catalogs"), file_name=catalog_names
     # )
     gcs_ids = nlt.upload_to_gcs.map(
