@@ -229,13 +229,18 @@ def list_of_dicts_to_parquet(struct: list, file_name: str, folder_name: str = No
 
 @task
 def upload_to_gcs(
-    to_upload: Union[str, Path], gcs_folder: str, config: Config, gcp_env: str = "dev",
+    to_upload: Union[str, Path],
+    gcs_folder: str,
+    config: Config,
+    source: str = None,
+    gcp_env: str = "dev",
+    prod_env: str = None,
 ) -> list:
 
     to_upload = Path(to_upload)
 
     # Set GCP params
-    gcp = nlu.set_gcp(config=config, gcp_env=gcp_env)
+    gcp = nlu.set_gcp(config=config, gcp_env=gcp_env, source=source, prod_env=prod_env)
     gcs_folder = gcs_folder.rstrip("/")
     gcs = storage.Client(project=gcp.project_id)
     gcs_bucket = gcs.get_bucket(gcp.bucket)
@@ -260,10 +265,12 @@ def gcs_to_bq(
     gcs_folder: str,
     dataset_name: str,
     config: Config = None,
+    source: str = None,
     gcp_env: str = "dev",
+    prod_env: str = None,
     **kwargs,
 ):
-    gcp = nlu.set_gcp(config=config, gcp_env=gcp_env)
+    gcp = nlu.set_gcp(config=config, gcp_env=gcp_env, source=source, prod_env=prod_env)
 
     # If source was given through kwargs, use to cunstruct full dataset_id
     try:
