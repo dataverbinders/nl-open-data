@@ -212,34 +212,40 @@ def csv_to_parquet(
 
         return out_file
 
-    # # If given a zip file with multiple csvs
-    # if file.suffix == ".zip":
 
-    #     if out_folder is not None:
-    #         out_folder = Path(out_folder)
-    #     else:
-    #         out_folder = file.parents[0] / file.stem
+@task
+def xls_to_parquet(
+    file: Union[str, Path], out_file: Union[str, Path] = None, **kwargs,
+) -> Path:
 
-    #     out_folder = create_dir_fun(out_folder)
-    #     # csv_dir = create_dir_fun(out_folder / "csv")
+    file = Path(file)
 
-    #     with ZipFile(file, "r") as zipfile:
-    #         zipfile.extractall(out_folder)
-    #     for csv_file in os.listdir(out_folder):
-    #         full_path = Path(os.path.join(out_folder, csv_file))
-    #         print()
-    #         print(full_path)
-    #         print()
-    #         pq_file = csv_to_parquet(file=full_path, delimiter=delimiter)
-    #         os.remove(full_path)
+    if file.suffix == ".xls":
+        if out_file is not None:
+            out_file = Path(out_file)
+        else:
+            folder = nlu.create_dir_util(file.parents[0] / "parquet")
+            out_file = folder / (file.stem + ".parquet")
+            # out_file = Path("".join(str(file).split(".")[:-1]) + ".parquet")
+        df = pd.read_excel(file, **kwargs)
+        df.to_parquet(out_file)
+        os.remove(file)
 
-    #     return out_folder
-
+        return out_file
     else:
         print(file)
-        raise TypeError("Only file extensions '.csv' are allowed")
+        raise TypeError("Only file extensions '.xls' are allowed")
 
-        # raise TypeError("Only file extensions '.csv' and '.zip' are allowed")
+
+@task()
+def replace_suffix(filepath: Union[str, Path], new_suffix: str):
+    filepath = Path(filepath)
+    return filepath.stem + new_suffix
+
+
+@task()
+def create_path(filename, folder):
+    return Path(folder) / Path(filename)
 
 
 @task
@@ -247,7 +253,7 @@ def struct_to_parquet(struct: list, file_name: str, folder_name: str = None):
     df = pd.DataFrame(struct)
     table = PA_Table.from_pandas(df)
     if folder_name:
-        pq_file = Path(gettempdir()) / Path(folder_name + ".parquet") / Path(file_name)
+        pq_file = Path(gettempdir()) / Path(folder_name) / Path(file_name + ".parquet")
     else:
         pq_file = Path(gettempdir()) / Path(file_name + ".parquet")
     with open(pq_file, "wb+") as f:
