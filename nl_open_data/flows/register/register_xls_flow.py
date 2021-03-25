@@ -1,4 +1,3 @@
-# %%
 # the config object must be imported from config.py before any Prefect imports
 from nl_open_data.config import config
 

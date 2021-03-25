@@ -295,6 +295,7 @@ def upload_to_gcs(
 
 
 @task
+# Rename appropriately (gcs_folder_to_bq?)
 def gcs_to_bq(
     gcs_folder: str,
     dataset_name: str,
@@ -320,8 +321,45 @@ def gcs_to_bq(
     dataset_id = nlu.create_bq_dataset(name=dataset_name, gcp=gcp, **kwargs)
 
     # Link parquet files in GCS to tables in BQ dataset
-    tables = nlu.link_parquet_to_bq_dataset(
+    tables = nlu.link_pq_folder_to_bq_dataset(
         gcs_folder=gcs_folder, gcp=gcp, dataset_id=dataset_id
     )
 
     return tables
+
+
+@task()
+def create_linked_dataset(
+    dataset_name: str,
+    pq_files: list,
+    config: Config,
+    gcp_env: str = "dev",
+    prod_env: str = None,
+    **kwargs,
+):
+    """Creates a BQ dataset and nests tables linked to GCS parquet files.
+
+    Parameters
+    ----------
+    dataset_name : str
+        [description]
+    pq_files : [type]
+        [description]
+    """
+    gcp = nlu.set_gcp(config=config, gcp_env=gcp_env, prod_env=prod_env)
+    dataset_id = dataset_name
+
+    # Check if dataset exists and delete if it does
+    # TODO: maybe delete anyway (deleting currently uses not_found_ok to ignore error if does not exist)
+    if nlu.check_bq_dataset(dataset_id=dataset_id, gcp=gcp):
+        nlu.delete_bq_dataset(dataset_id=dataset_id, gcp=gcp)
+
+    # Create dataset and reset dataset_id to new dataset
+    dataset_id = nlu.create_bq_dataset(name=dataset_name, gcp=gcp, **kwargs)
+
+    tables = nlu.link_pq_files_to_bq_dataset(pq_files)
+
+    return tables
+
+
+# %%

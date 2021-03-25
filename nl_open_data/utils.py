@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, List
 from pathlib import Path
 
 from google.cloud import storage
@@ -187,7 +187,7 @@ def create_bq_dataset(
         return dataset.dataset_id
 
 
-def link_parquet_to_bq_dataset(gcs_folder: str, gcp: GcpProject, dataset_id: str):
+def link_pq_folder_to_bq_dataset(gcs_folder: str, gcp: GcpProject, dataset_id: str):
 
     # Get blobs within gcs_folder
     storage_client = storage.Client(project=gcp.project_id)
@@ -220,3 +220,44 @@ def link_parquet_to_bq_dataset(gcs_folder: str, gcp: GcpProject, dataset_id: str
             tables.append(table)
 
     return tables
+
+
+# def get_gcs_blob(gcp: GcpProject):
+#     storage_client = storage.Client(project=gcp.project_id)
+#     blobs = storage_client.list_blobs(gcp.bucket, prefix=gcs_folder)
+
+
+def create_linked_tables(source_uris: List[str], gcp: GcpProject, dataset_id: str):
+    """Takes a list of GCS uris and creates a linked table per uri nested under the given dataset_id
+
+    Parameters
+    ----------
+    source_uris : List[str]
+        [description]
+    gcp : GcpProject
+        [description]
+    dataset_id : str
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+
+    # Initialize client
+    bq_client = bigquery.Client(project=gcp.project_id)
+
+    # Initialize the external data source
+    dataset_ref = bigquery.DatasetReference(gcp.project_id, dataset_id)
+    tables = []
+    for uri in source_uris:
+        table_id = uri.split("/")[-1].split(".")[-2]
+        table = bigquery.Table(dataset_ref.table(table_id))
+        external_config = bigquery.ExternalConfig("PARQUET")
+        external_config.source_uris = [uri]
+        table.external_data_configuration = external_config
+        table = bq_client.create_table(table, exists_ok=True)
+        tables.append(table)
+
+    return tables)

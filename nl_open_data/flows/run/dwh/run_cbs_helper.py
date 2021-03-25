@@ -1,3 +1,10 @@
+# Creates a `CBS helper` dataset in BQ, with 4 (/5?) tables:
+# - CBS Catalog
+# - Kerncijfers wijken and buurten
+# - Nabijheidsstatistieken
+# - Bevolkingsstatistieken per pc4
+# - Mapping pc6huisnummer tot buurten and wijken
+
 ##########
 # Kerncijfers wijken and buurten (xls_flow)
 
