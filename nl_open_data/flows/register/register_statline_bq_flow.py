@@ -37,7 +37,7 @@ from statline_bq.utils import (
     bq_update_main_table_col_descriptions,
 )
 
-from nl_open_data.tasks import upper, lower, remove_dir, skip_task
+from nl_open_data.tasks import lower, clean_up_dir, skip_task, get_parent
 
 # Converting statline-bq functions to tasks
 check_gcp_env = task(check_gcp_env)
@@ -191,10 +191,12 @@ with Flow("statline-bq") as statline_flow:
         # gcp_env=unmapped(gcp_env),
         upstream_tasks=[desc_dicts, go_nogo],
     )
-    remove = remove_dir.map(
-        pq_dir, upstream_tasks=[gcs_folders]
+    dataset_dir = get_parent.map(
+        pq_dir, level=unmapped(2), upstream_tasks=[gcs_folders]
+    )  # TODO: Improve?
+    remove = clean_up_dir.map(
+        dataset_dir, upstream_tasks=[gcs_folders]
     )  # TODO: better(=more reliable) implementation for dir tree removal might be considered?
-
 
 if __name__ == "__main__":
 
@@ -216,26 +218,35 @@ if __name__ == "__main__":
         project_name="nl_open_data", version_group_id="statline_bq"
     )
 
-    # # Run locally
-    # # ids = ["83583NED"]
-    # ids = ["83583NED", "83765NED", "84799NED", "84583NED", "84286NED"]
-    # mlz_ids = ["40015NED", "40080NED", "40081NED"]
-    # state = statline_flow.run(
-    #     parameters={
-    #         "ids": ids,
-    #         "source": "cbs",
-    #         "third_party": False,
-    #         "force": True,
-    #         "gcp_env": "prod",
-    #     }
-    # )
-    # state = statline_flow.run(
-    #     parameters={
-    #         "ids": mlz_ids,
-    #         "source": "mlz",
-    #         "third_party": True,
-    #         "force": True,
-    #         "gcp_env": "prod",
-    #     }
-    # )
+# Run locally
+# ids = ["83583NED"]
+# ids = ["83583NED", "83765NED", "84799NED", "84583NED", "84286NED"]
+# mlz_ids = ["40015NED", "40080NED", "40081NED"]
+# statline_flow.executor = DaskExecutor(
+#     # cluster_class="LocalCluster",
+#     cluster_kwargs={"n_workers": 8},
+#     # debug=True,
+#     # processes=True,
+#     # silence_logs=100, # TODO (?) : find out what the number stands for
+# )
+# state = statline_flow.run(
+#     parameters={
+#         "ids": ids,
+#         "source": "cbs",
+#         "third_party": False,
+#         "force": True,
+#         "gcp_env": "dev",
+#     }
+# )
+# state = statline_flow.run(
+#     parameters={
+#         "ids": mlz_ids,
+#         "source": "mlz",
+#         "third_party": True,
+#         "force": True,
+#         "gcp_env": "prod",
+#     }
+# )
 
+
+# %%

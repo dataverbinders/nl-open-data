@@ -37,6 +37,7 @@ pytest = "^5.2"
 prefect = {extras = ["viz"], version = "^0.14.0"}
 dataclasses-json = "^0.5.2"
 bokeh = "^2.2.3"
+altair = "^4.1.0"
 
 
 [tool.dephell.main]

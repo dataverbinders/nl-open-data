@@ -45,7 +45,8 @@ GCP_ENV = "prod"
 FORCE = False
 
 ## Schedule flow-runs
-for i in range(len(DATA) // 10 + 1):
+# for i in range(len(DATA) // 10 + 1):
+for i in range(5):
     # run parameters
     VERSION_GROUP_ID = "statline_bq"
     CBS_V3_RUN_NAME = (
