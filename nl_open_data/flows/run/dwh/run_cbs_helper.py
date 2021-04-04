@@ -6,19 +6,24 @@
 # - Mapping pc6huisnummer tot buurten and wijken
 
 ##########
-# Kerncijfers wijken and buurten (xls_flow)
+# Upload Kerncijfers wijken and buurten to gcs (xls_concat_flow)
 
 # Taking 2013-2020
 # Taking 2013 here, because earlier data has different format, so we leave integration of those for later. #TODO
 # https://www.cbs.nl/nl-nl/reeksen/kerncijfers-wijken-en-buurten-2004-2020
-kwb_years = range(2013, 2021)
 kwb_urls = [
-    f"https://www.cbs.nl/-/media/cbs/dossiers/nederland-regionaal/wijk-en-buurtstatistieken/_exel/kwb-{year}.xls"
-    for year in kwb_years
+    "https://www.cbs.nl/-/media/cbs/dossiers/nederland-regionaal/wijk-en-buurtstatistieken/_exel/kwb-2013.xls",
+    "https://www.cbs.nl/-/media/cbs/dossiers/nederland-regionaal/wijk-en-buurtstatistieken/_exel/kerncijfers-wijken-en-buurten-2014.xls",
+    "https://www.cbs.nl/-/media/cbs/dossiers/nederland-regionaal/wijk-en-buurtstatistieken/_exel/kwb-2015.xls",
+    "https://www.cbs.nl/-/media/cbs/dossiers/nederland-regionaal/wijk-en-buurtstatistieken/_exel/kwb-2016.xls",
+    "https://www.cbs.nl/-/media/cbs/dossiers/nederland-regionaal/wijk-en-buurtstatistieken/_exel/kwb-2017.xls",
+    "https://www.cbs.nl/-/media/_excel/2021/12/kwb-2018.xls",
+    "https://www.cbs.nl/-/media/_excel/2021/12/kwb-2019.xls",
+    "https://www.cbs.nl/-/media/_excel/2021/12/kwb-2020.xls",
 ]
 
 ##########
-# Nabijheidsstatistieken
+# Upload Nabijheidsstatistieken to gcs (Xls_flow + statline_bq_flow)
 
 
 # 2006-2016 figures are excel files
@@ -39,8 +44,12 @@ kwb_urls = [
 "84718NED"
 ###########
 
-# Bevolkingsstatistieken per pc4
+# Bevolkingsstatistieken per pc4 (statline_bq_flow)
 "83502NED"
 
 ##########
-# Mapping pc6huisnummer tot buurten and wijken
+# Create dataset (gcs_to_bq_flow)
+
+
+##########
+# Mapping pc6huisnummer tot buurten and wijken (????)

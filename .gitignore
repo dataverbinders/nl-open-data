@@ -123,3 +123,6 @@ notebooks/
 
 # Logs
 logs/
+
+# Temp test dir
+tmp_gcs_helper/

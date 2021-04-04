@@ -1,16 +1,16 @@
-from typing import Union
+from typing import Union, List
 from pathlib import Path
 import os
 from shutil import rmtree
-from tempfile import gettempdir
+from tempfile import gettempdir, mkdtemp
 from zipfile import ZipFile
-from prefect.triggers import all_finished
+from prefect.triggers import all_finished, any_successful
 import requests
 
 from google.cloud import storage
 import pandas as pd
 from pyarrow import Table as PA_Table
-from pyarrow import csv
+from pyarrow import csv, concat_tables
 import pyarrow.parquet as pq
 from prefect.engine.signals import SKIP
 from prefect import task
@@ -30,6 +30,15 @@ def get_parent(dir: Union[str, Path], level: int = 1):
     for _ in range(level):
         dir = dir.parent
     return dir
+
+
+def list_comprehension(original_list, lambda_func):
+    return [lambda_func(x) for x in original_list]
+
+
+@task
+def add_folder_to_filename(folder: Union[str, Path], filename: Union[str, Path]):
+    return Path(folder) / Path(filename)
 
 
 @task
@@ -53,6 +62,16 @@ def skip_task(x):
         raise SKIP
     else:
         return None
+
+
+@task
+def pythonize_names(file: Union[str, Path]) -> Path:
+    path = Path(file)
+    chars = "-.()"
+    for char in chars:
+        new_name = path.name.replace(char, "_")
+    path.rename(new_name) # TODO - NOT WORKING WELL. Should add PARENTS
+    return path
 
 
 # TODO: Check if there's a better way here? It seems odd we would hve to have 2 tasks only to change the trigger?
@@ -81,6 +100,32 @@ def remove_dir(path: Union[str, Path]) -> None:
 
 
 @task
+def create_temp_dir(name: str) -> Path:
+    """Creates a dir in the local temp folder
+
+    Parameters
+    ----------
+    name: str
+        Name of the folder to be created
+
+    Returns
+    -------
+    path: Path
+        The path to the temp folder.
+    """
+
+    try:
+        path = Path(mkdtemp(prefix=name))
+        # path = Path(gettempdir() / Path(name))
+        if not (path.exists() and path.is_dir()):
+            path.mkdir(parents=True)
+        return path
+    except TypeError as error:
+        print(f"Error trying to find {path}: {error!s}")
+        return None
+
+
+@task
 def create_dir(path: Union[Path, str]) -> Path:
     """Checks whether a path exists and is a directory, and creates it if not.
 
@@ -105,9 +150,13 @@ def create_dir(path: Union[Path, str]) -> Path:
         return None
 
 
-@task
+@task(log_stdout=True)
 def curl_cmd(
-    url: str, filepath: Union[str, Path], limit_retries: bool = True, **kwargs
+    url: str,
+    filepath: Union[str, Path],
+    limit_retries: bool = True,
+    std_out: bool = False,
+    **kwargs,
 ) -> str:
     """Template for curl command to download file.
 
@@ -152,11 +201,14 @@ def curl_cmd(
     """
     if Path(filepath).exists():
         raise SKIP(f"File {filepath} already exists.")
-    return (
-        f"curl -fL -o {filepath} {url}"
+    cmd = (
+        f"curl -fL '{url}' -o '{filepath}'"
         if limit_retries
-        else f"curl --max-redirs -1 -fL -o {filepath} {url}"
+        else f"curl --max-redirs -1 -fL '{url}' -o '{filepath}'"
     )
+    if std_out:
+        print(cmd)
+    return cmd
 
 
 @task
@@ -183,7 +235,9 @@ def unzip(zipfile: Union[Path, str], out_folder: Union[Path, str] = None):
     return out_folder
 
 
-@task
+@task(
+    trigger=any_successful, skip_on_upstream_skip=False
+)  # TODO: How to allow more flexibility?? These changes are needed for register_xls_to_gcs_flow, maybe in others as well, but likely not always.
 def list_dir(dir: Union[Path, str]):
     full_paths = [Path(dir) / file for file in os.listdir(dir)]
     return full_paths
@@ -213,7 +267,7 @@ def csv_to_parquet(
         return out_file
 
 
-@task
+@task(skip_on_upstream_skip=False)
 def xls_to_parquet(
     file: Union[str, Path], out_file: Union[str, Path] = None, **kwargs,
 ) -> Path:
@@ -235,6 +289,19 @@ def xls_to_parquet(
     else:
         print(file)
         raise TypeError("Only file extensions '.xls' are allowed")
+
+
+@task
+def concat_parquet_files(
+    pq_files: List[Union[str, Path]],
+    out_folder: Union[str, Path],
+    out_file: Union[str, Path],
+) -> Path:
+    tables = [pq.read_table(file) for file in pq_files]
+    full_table = concat_tables(tables)
+    o = pq.write_table(full_table, Path(out_folder) / Path(out_file))
+
+    return o
 
 
 @task()
@@ -295,8 +362,8 @@ def upload_to_gcs(
 
 
 @task
-# Rename appropriately (gcs_folder_to_bq?)
-def gcs_to_bq(
+# Rename appropriately in all register flows
+def gcs_folder_to_bq(
     gcs_folder: str,
     dataset_name: str,
     config: Config = None,
@@ -328,10 +395,31 @@ def gcs_to_bq(
     return tables
 
 
+# @task()
+# def combine_parquet_files(input_folder, target_path):
+#     try:
+#         files = []
+#         for file_name in os.listdir(input_folder):
+#             files.append(pq.read_table(os.path.join(input_folder, file_name)))
+#         with pq.ParquetWriter(
+#             target_path,
+#             files[0].schema,
+#             version="2.0",
+#             compression="gzip",
+#             use_dictionary=True,
+#             data_page_size=2097152,  # 2MB
+#             write_statistics=True,
+#         ) as writer:
+#             for f in files:
+#                 writer.write_table(f)
+#     except Exception as e:
+#         print(e)
+
+
 @task()
 def create_linked_dataset(
     dataset_name: str,
-    pq_files: list,
+    gcs_uris: list,
     config: Config,
     gcp_env: str = "dev",
     prod_env: str = None,
@@ -357,9 +445,6 @@ def create_linked_dataset(
     # Create dataset and reset dataset_id to new dataset
     dataset_id = nlu.create_bq_dataset(name=dataset_name, gcp=gcp, **kwargs)
 
-    tables = nlu.link_pq_files_to_bq_dataset(pq_files)
+    tables = nlu.create_linked_tables(gcs_uris, gcp, dataset_id)
 
     return tables
-
-
-# %%

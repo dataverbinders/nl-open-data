@@ -222,11 +222,6 @@ def link_pq_folder_to_bq_dataset(gcs_folder: str, gcp: GcpProject, dataset_id: s
     return tables
 
 
-# def get_gcs_blob(gcp: GcpProject):
-#     storage_client = storage.Client(project=gcp.project_id)
-#     blobs = storage_client.list_blobs(gcp.bucket, prefix=gcs_folder)
-
-
 def create_linked_tables(source_uris: List[str], gcp: GcpProject, dataset_id: str):
     """Takes a list of GCS uris and creates a linked table per uri nested under the given dataset_id
 
@@ -260,4 +255,4 @@ def create_linked_tables(source_uris: List[str], gcp: GcpProject, dataset_id: st
         table = bq_client.create_table(table, exists_ok=True)
         tables.append(table)
 
-    return tables)
+    return tables
