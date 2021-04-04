@@ -16,4 +16,3 @@ import nl_open_data.tasks as nlt
 with Flow("gcs_to_bq") as gcs_to_bq_flow:
     blobs = Parameter("blobs")
     dataset_name = Parameter("dataset_name")
-
