@@ -1,4 +1,5 @@
 # Uploads the following to Storage:
+# - (A version of) CBS catalog (TODO: Decide if/what/how)
 # - Kerncijfers wijken and buurten
 # - Nabijheidsstatistieken
 # - Bevolkingsstatistieken per pc4
@@ -65,7 +66,18 @@ flow_run_id = client.create_flow_run(
 # 2006-2016 figures are excel files
 
 # flow parameters
-URLS = [  # TODO: PyArrow error in conversion to Parquet !!ALL!!
+URLS = [  # TODO: PyArrow error in conversion to Parquet: !!ALL!!
+    # - Unexpected error: ArrowInvalid('Could not convert . with type str: tried to convert to double', 'Conversion failed for column consultb2006_afst with type object')
+    # - Unexpected error: ArrowInvalid('Could not convert . with type str: tried to convert to double', 'Conversion failed for column huisarts2011_afst with type object')
+    # - Unexpected error: ArrowInvalid('Could not convert . with type str: tried to convert to double', 'Conversion failed for column huisarts2009_afst with type object')
+    # - Unexpected error: ArrowInvalid('Could not convert . with type str: tried to convert to double', 'Conversion failed for column huisarts2012_afst with type object')
+    # - Unexpected error: ArrowInvalid('Could not convert . with type str: tried to convert to double', 'Conversion failed for column huisarts2008_afst with type object')
+    # - Unexpected error: ArrowInvalid('Could not convert . with type str: tried to convert to double', 'Conversion failed for column huisarts2007_afst with type object')
+    # - Unexpected error: ArrowTypeError("Expected bytes, got a 'float' object", 'Conversion failed for column Afstand tot ziekenhuis (incl) with type object')
+    # - Unexpected error: ArrowTypeError("Expected bytes, got a 'int' object", 'Conversion failed for column Afstand tot huisartsenpraktijk with type object')
+    # - Unexpected error: ArrowInvalid('Could not convert         . with type str: tried to convert to double', 'Conversion failed for column huisarts2010_afst with type object')
+    # - Unexpected error: ArrowInvalid('Could not convert . with type str: tried to convert to double', 'Conversion failed for column huisarts2013_afst with type object')
+    # -
     "https://www.cbs.nl/-/media/_excel/2016/17/nabijheid-2006-2016-04-18.xls",
     "https://www.cbs.nl/-/media/_excel/2016/17/nabijheid-2007-2016-04-18.xls",
     "https://www.cbs.nl/-/media/_excel/2016/17/nabijheid-2008-2016-04-18.xls",
