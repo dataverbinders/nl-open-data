@@ -60,6 +60,9 @@ gcs_to_gbq = task(gcs_to_gbq)
 get_col_descs_from_gcs = task(get_col_descs_from_gcs)
 bq_update_main_table_col_descriptions = task(bq_update_main_table_col_descriptions)
 
+VERSION_GROUP_ID = "statline_bq"
+PROJECT_NAME = "nl_open_data"
+
 with Flow("statline-bq") as statline_flow:
     """A Prefect flow to upload datasets from CBS Statline to Google BigQuery.
 
@@ -199,7 +202,6 @@ with Flow("statline-bq") as statline_flow:
     )  # TODO: better(=more reliable) implementation for dir tree removal might be considered?
 
 if __name__ == "__main__":
-
     # Register flow
     statline_flow.storage = GCS(
         project="dataverbinders-dev",
@@ -215,7 +217,7 @@ if __name__ == "__main__":
         # silence_logs=100, # TODO (?) : find out what the number stands for
     )
     flow_id = statline_flow.register(
-        project_name="nl_open_data", version_group_id="statline_bq"
+        project_name=PROJECT_NAME, version_group_id=VERSION_GROUP_ID
     )
 
 # Run locally
