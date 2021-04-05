@@ -22,7 +22,7 @@ client.login_to_tenant(tenant_slug=TENANT_SLUG)  # For user-scoped API token
 ################################################################################
 # Upload Kerncijfers wijken and buurten to gcs (xls_flow)
 # TODO: Are these the same or different then the regionaal_kwb statline datasets????
-# TODO: Concating??
+# TODO: How to concatanate?
 
 # Taking 2013-2020 here, because earlier data has different format, so we leave integration of those for later. #TODO
 # https://www.cbs.nl/nl-nl/reeksen/kerncijfers-wijken-en-buurten-2004-2020
@@ -30,17 +30,31 @@ client.login_to_tenant(tenant_slug=TENANT_SLUG)  # For user-scoped API token
 # flow parameters
 URLS = [
     "https://www.cbs.nl/-/media/cbs/dossiers/nederland-regionaal/wijk-en-buurtstatistieken/_exel/kwb-2013.xls",
-    # "https://www.cbs.nl/-/media/cbs/dossiers/nederland-regionaal/wijk-en-buurtstatistieken/_exel/kerncijfers-wijken-en-buurten-2014.xls",  # TODO: PyArrow error in conversion to Parquet
+    "https://www.cbs.nl/-/media/cbs/dossiers/nederland-regionaal/wijk-en-buurtstatistieken/_exel/kerncijfers-wijken-en-buurten-2014.xls",  # TODO: PyArrow error in conversion to Parquet
     "https://www.cbs.nl/-/media/cbs/dossiers/nederland-regionaal/wijk-en-buurtstatistieken/_exel/kwb-2015.xls",
     "https://www.cbs.nl/-/media/cbs/dossiers/nederland-regionaal/wijk-en-buurtstatistieken/_exel/kwb-2016.xls",
     "https://www.cbs.nl/-/media/cbs/dossiers/nederland-regionaal/wijk-en-buurtstatistieken/_exel/kwb-2017.xls",
     "https://www.cbs.nl/-/media/_excel/2021/12/kwb-2018.xls",
-    "https://www.cbs.nl/-/media/_excel/2021/12/kwb-2019.xls",
+    # "https://www.cbs.nl/-/media/_excel/2021/12/kwb-2019.xls",  # BUG: Unexpected error: ArrowInvalid('Could not convert 5,0 with type str: tried to convert to double', 'Conversion failed for column p_stadsv with type object')
+    # This issue stems from the mixed data types in Excel (NUMBER and TEXT).
+    # The column is translated as a dtype=object, and then crashes when trying to convert to parquet.
+    # This issue is related: https://issues.apache.org/jira/browse/ARROW-4131
+    # No trivial solution (skip_columns does not exist in read_excel, trying str.replace(".", ",") also fails
     "https://www.cbs.nl/-/media/_excel/2021/12/kwb-2020.xls",
 ]
 GCS_FOLDER = "cbs/kwb"
 GCP_ENV = "dev"
 PROD_ENV = None
+KWARGS = [
+    {"na_values": [".", "        .", "        .       "]},  # 2013
+    {"na_values": [".", "        .", "        .       "]},  # 2014
+    {"na_values": [".", "        .", "        .       "]},  # 2015
+    {"na_values": [".", "        .", "        .       "]},  # 2016
+    {"na_values": [".", "        .", "        .       "]},  # 2017
+    {"na_values": [".", "        .", "        .       "]},  # 2018
+    # {"na_values": [".", "        .", "        .       "]},  # 2019 # BUG: (See above)
+    {"na_values": [".", "        .", "        .       "]},  # 2020
+]
 
 # run parameters
 VERSION_GROUP_ID = "xls_to_gcs"
@@ -49,7 +63,8 @@ PARAMETERS = {
     "urls": URLS,
     "gcs_folder": GCS_FOLDER,
     "gcp_env": GCP_ENV,
-    "PROD_ENV": PROD_ENV,
+    "prod_env": PROD_ENV,
+    "read_excel_kwargs": KWARGS,
 }
 
 # Schedule run
@@ -66,18 +81,7 @@ flow_run_id = client.create_flow_run(
 # 2006-2016 figures are excel files
 
 # flow parameters
-URLS = [  # TODO: PyArrow error in conversion to Parquet: !!ALL!!
-    # - Unexpected error: ArrowInvalid('Could not convert . with type str: tried to convert to double', 'Conversion failed for column consultb2006_afst with type object')
-    # - Unexpected error: ArrowInvalid('Could not convert . with type str: tried to convert to double', 'Conversion failed for column huisarts2011_afst with type object')
-    # - Unexpected error: ArrowInvalid('Could not convert . with type str: tried to convert to double', 'Conversion failed for column huisarts2009_afst with type object')
-    # - Unexpected error: ArrowInvalid('Could not convert . with type str: tried to convert to double', 'Conversion failed for column huisarts2012_afst with type object')
-    # - Unexpected error: ArrowInvalid('Could not convert . with type str: tried to convert to double', 'Conversion failed for column huisarts2008_afst with type object')
-    # - Unexpected error: ArrowInvalid('Could not convert . with type str: tried to convert to double', 'Conversion failed for column huisarts2007_afst with type object')
-    # - Unexpected error: ArrowTypeError("Expected bytes, got a 'float' object", 'Conversion failed for column Afstand tot ziekenhuis (incl) with type object')
-    # - Unexpected error: ArrowTypeError("Expected bytes, got a 'int' object", 'Conversion failed for column Afstand tot huisartsenpraktijk with type object')
-    # - Unexpected error: ArrowInvalid('Could not convert         . with type str: tried to convert to double', 'Conversion failed for column huisarts2010_afst with type object')
-    # - Unexpected error: ArrowInvalid('Could not convert . with type str: tried to convert to double', 'Conversion failed for column huisarts2013_afst with type object')
-    # -
+URLS = [
     "https://www.cbs.nl/-/media/_excel/2016/17/nabijheid-2006-2016-04-18.xls",
     "https://www.cbs.nl/-/media/_excel/2016/17/nabijheid-2007-2016-04-18.xls",
     "https://www.cbs.nl/-/media/_excel/2016/17/nabijheid-2008-2016-04-18.xls",
@@ -90,20 +94,32 @@ URLS = [  # TODO: PyArrow error in conversion to Parquet: !!ALL!!
     "https://www.cbs.nl/-/media/_excel/2017/32/nabijheid_wijkbuurt_2015v3.xls",
     "https://www.cbs.nl/-/media/_excel/2017/32/nabijheid_2016.xls",
 ]
-GCS_FOLDER = "cbs/nabijheid"
+GCS_FOLDER = "cbs/nbh"
 GCP_ENV = "dev"
 PROD_ENV = None
+KWARGS = [
+    {"na_values": [".", "        .", "        .       "]},  # 2006
+    {"na_values": [".", "        .", "        .       "]},  # 2007
+    {"na_values": [".", "        .", "        .       "]},  # 2008
+    {"na_values": [".", "        .", "        .       "]},  # 2009
+    {"na_values": [".", "        .", "        .       "]},  # 2010
+    {"na_values": [".", "        .", "        .       "]},  # 2011
+    {"na_values": [".", "        .", "        .       "]},  # 2012
+    {"na_values": [".", "        .", "        .       "]},  # 2013
+    {"na_values": [".", "        .", "        .       "]},  # 2014
+    {"skiprows": [1, 2], "na_values": [".", "        .", "        .       "]},  # 2015
+    {"skiprows": [1, 2], "na_values": [".", "        .", "        .       "]},  # 2016
+]
 
 # run parameters
 VERSION_GROUP_ID = "xls_to_gcs"
-RUN_NAME = (
-    f"cbs_helper_nabijheid_xls_{datetime.today().date()}_{datetime.today().time()}"
-)
+RUN_NAME = f"cbs_helper_nbh_xls_{datetime.today().date()}_{datetime.today().time()}"
 PARAMETERS = {
     "urls": URLS,
     "gcs_folder": GCS_FOLDER,
     "gcp_env": GCP_ENV,
     "PROD_ENV": PROD_ENV,
+    "read_excel_kwargs": KWARGS,
 }
 
 # Schedule run
@@ -170,6 +186,8 @@ PARAMETERS = {
 flow_run_id = client.create_flow_run(
     version_group_id=VERSION_GROUP_ID, run_name=RUN_NAME, parameters=PARAMETERS,
 )
+################################################################################
+# TODO: Mapping pc6huisnummer tot buurten and wijken (????)
 
 ################################################################################
 # Create dataset(/s) (gcs_to_bq_flow)
@@ -177,4 +195,3 @@ flow_run_id = client.create_flow_run(
 # See https://docs.prefect.io/core/idioms/flow-to-flow.html#scheduling-a-flow-of-flows for more info.
 
 ################################################################################
-# Mapping pc6huisnummer tot buurten and wijken (????)

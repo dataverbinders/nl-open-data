@@ -4,7 +4,6 @@ import os
 from shutil import rmtree
 from tempfile import gettempdir, mkdtemp
 from zipfile import ZipFile
-from prefect.triggers import all_finished, any_successful
 import requests
 
 from google.cloud import storage
@@ -65,32 +64,45 @@ def skip_task(x):
 
 
 @task
-def pythonize_names(file: Union[str, Path]) -> Path:
-    path = Path(file)
-    chars = "-.()"
-    for char in chars:
-        new_name = path.name.replace(char, "_")
-    path.rename(new_name) # TODO - NOT WORKING WELL. Should add PARENTS
-    return path
+def clean_file_name(file: Union[str, Path], chars: str = None) -> Path:
+    """Renames files by replacing certain characters from the filename with an underscore.
 
+    By default, replaces all occurunces of: hyphen, dot or parentheses.
+    To replace different characters, provide a single string with desired characters.
 
-# TODO: Check if there's a better way here? It seems odd we would hve to have 2 tasks only to change the trigger?
-@task(trigger=all_finished)
-def clean_up_dir(path: Union[str, Path]) -> None:
-    """"Same as remove_dir, but always runs at end of flow."
+    Original filepath must exist.
 
     Parameters
     ----------
-    path : Union[str, Path]
-        [description]
+    file : Union[str, Path]
+        The file to clean its name.
+    extra_chars : str, optional
+        Additional characters to replace.
 
     Returns
     -------
-    [type]
-        [description]
+    Path
+        The filepath to the renamed file.
+
+    Examples
+    --------
+    >>> path = "/some-folder/another.folder/some-file$@(1).txt"
+    >>> new_path = clean_file_name(path)
+    >>> new_path
+    PosixPath('/some-folder/another.folder/some_file$@_1_.txt')
+    >>> special_chars = "-()@$"
+    >>> special_new_path = clean_file_name(path, special_chars)
+    PosixPath('/some-folder/another.folder/some_file___1_.txt')
     """
-    rmtree(Path(path))
-    return None
+    path = Path(file)
+    if not chars:
+        chars = "-.()"
+    new_stem = path.stem
+    for char in chars:
+        new_stem = new_stem.replace(char, "_")
+    new_path = path.parent / Path(new_stem + path.suffix)
+    new_path = path.rename(new_path)
+    return new_path
 
 
 @task
@@ -235,9 +247,7 @@ def unzip(zipfile: Union[Path, str], out_folder: Union[Path, str] = None):
     return out_folder
 
 
-@task(
-    trigger=any_successful, skip_on_upstream_skip=False
-)  # TODO: How to allow more flexibility?? These changes are needed for register_xls_to_gcs_flow, maybe in others as well, but likely not always.
+@task()
 def list_dir(dir: Union[Path, str]):
     full_paths = [Path(dir) / file for file in os.listdir(dir)]
     return full_paths
@@ -267,9 +277,9 @@ def csv_to_parquet(
         return out_file
 
 
-@task(skip_on_upstream_skip=False)
+@task()
 def xls_to_parquet(
-    file: Union[str, Path], out_file: Union[str, Path] = None, **kwargs,
+    file: Union[str, Path], out_file: Union[str, Path] = None, read_excel_kwargs=None,
 ) -> Path:
 
     file = Path(file)
@@ -278,10 +288,12 @@ def xls_to_parquet(
         if out_file is not None:
             out_file = Path(out_file)
         else:
-            folder = nlu.create_dir_util(file.parents[0] / "parquet")
+            folder = nlu.create_dir_util(file.parent / "parquet")
             out_file = folder / (file.stem + ".parquet")
-            # out_file = Path("".join(str(file).split(".")[:-1]) + ".parquet")
-        df = pd.read_excel(file, **kwargs)
+        if read_excel_kwargs:
+            df = pd.read_excel(file, **read_excel_kwargs)
+        else:
+            df = pd.read_excel(file)
         df.to_parquet(out_file)
         os.remove(file)
 
@@ -362,7 +374,7 @@ def upload_to_gcs(
 
 
 @task
-# Rename appropriately in all register flows
+# TODO: Rename appropriately in all register flows
 def gcs_folder_to_bq(
     gcs_folder: str,
     dataset_name: str,
