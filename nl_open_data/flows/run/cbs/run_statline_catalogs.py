@@ -12,7 +12,7 @@ TENANT_SLUG = "dataverbinders"
 # flow parameters
 CBS_CATALOGS = {
     "cbs_v3": "https://opendata.cbs.nl/ODataCatalog/Tables?$format=json",
-    "iv3_v3": "https://dataderden.cbs.nl/ODataCatalog/Tables?$format=json",
+    "external_v3": "https://dataderden.cbs.nl/ODataCatalog/Tables?$format=json",
     "cbs_v4": "https://odata4.cbs.nl/CBS/Datasets",
 }
 URLS = list(CBS_CATALOGS.values())

@@ -33,7 +33,7 @@ with Flow("statline-catalogs") as st_catalogs_flow:
         gcp_env=unmapped(gcp_env),
         prod_env=unmapped(prod_env),
     )
-    bq_tables = nlt.gcs_to_bq.map(
+    bq_tables = nlt.gcs_folder_to_bq.map(
         gcs_folder=unmapped("_catalogs"),
         dataset_name=unmapped("catalogs"),
         config=unmapped(config),
@@ -65,13 +65,13 @@ if __name__ == "__main__":
     # # flow parameters
     # CBS_CATALOGS = {
     #     "cbs_v3": "https://opendata.cbs.nl/ODataCatalog/Tables?$format=json",
-    #     # "iv3_v3": "https://dataderden.cbs.nl/ODataCatalog/Tables?$format=json",
-    #     # "cbs_v4": "https://odata4.cbs.nl/CBS/Datasets",
+    #     "external_v3": "https://dataderden.cbs.nl/ODataCatalog/Tables?$format=json",
+    #     "cbs_v4": "https://odata4.cbs.nl/CBS/Datasets",
     # }
     # URLS = list(CBS_CATALOGS.values())
     # NAMES = list(CBS_CATALOGS.keys())
-    # GCP_ENV = "prod"
-    # PROD_ENV = "dwh"
+    # GCP_ENV = "dev"
+    # PROD_ENV = None
     # state = st_catalogs_flow.run(
     #     parameters={
     #         "catalog_urls": URLS,
