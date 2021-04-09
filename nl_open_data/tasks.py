@@ -1,16 +1,15 @@
-from typing import Union
+from typing import Union, List
 from pathlib import Path
 import os
 from shutil import rmtree
-from tempfile import gettempdir
+from tempfile import gettempdir, mkdtemp
 from zipfile import ZipFile
-from prefect.triggers import all_finished
 import requests
 
 from google.cloud import storage
 import pandas as pd
 from pyarrow import Table as PA_Table
-from pyarrow import csv
+from pyarrow import csv, concat_tables
 import pyarrow.parquet as pq
 from prefect.engine.signals import SKIP
 from prefect import task
@@ -30,6 +29,15 @@ def get_parent(dir: Union[str, Path], level: int = 1):
     for _ in range(level):
         dir = dir.parent
     return dir
+
+
+def list_comprehension(original_list, lambda_func):
+    return [lambda_func(x) for x in original_list]
+
+
+@task
+def add_folder_to_filename(folder: Union[str, Path], filename: Union[str, Path]):
+    return Path(folder) / Path(filename)
 
 
 @task
@@ -55,29 +63,78 @@ def skip_task(x):
         return None
 
 
-# TODO: Check if there's a better way here? It seems odd we would hve to have 2 tasks only to change the trigger?
-@task(trigger=all_finished)
-def clean_up_dir(path: Union[str, Path]) -> None:
-    """"Same as remove_dir, but always runs at end of flow."
+@task
+def clean_file_name(file: Union[str, Path], chars: str = None) -> Path:
+    """Renames files by replacing certain characters from the filename with an underscore.
+
+    By default, replaces all occurunces of: hyphen, dot or parentheses.
+    To replace different characters, provide a single string with desired characters.
+
+    Original filepath must exist.
 
     Parameters
     ----------
-    path : Union[str, Path]
-        [description]
+    file : Union[str, Path]
+        The file to clean its name.
+    extra_chars : str, optional
+        Additional characters to replace.
 
     Returns
     -------
-    [type]
-        [description]
+    Path
+        The filepath to the renamed file.
+
+    Examples
+    --------
+    >>> path = "/some-folder/another.folder/some-file$@(1).txt"
+    >>> new_path = clean_file_name(path)
+    >>> new_path
+    PosixPath('/some-folder/another.folder/some_file$@_1_.txt')
+    >>> special_chars = "-()@$"
+    >>> special_new_path = clean_file_name(path, special_chars)
+    PosixPath('/some-folder/another.folder/some_file___1_.txt')
     """
-    rmtree(Path(path))
-    return None
+    path = Path(file)
+    if not chars:
+        chars = "-.()"
+    new_stem = path.stem
+    for char in chars:
+        new_stem = new_stem.replace(char, "_")
+    new_path = path.parent / Path(new_stem + path.suffix)
+    new_path = path.rename(new_path)
+    return new_path
 
 
 @task
 def remove_dir(path: Union[str, Path]) -> None:
     rmtree(Path(path))
     return None
+
+
+@task
+def create_temp_dir(name: str) -> Path:
+    """Creates a dir in the local temp folder
+
+    Parameters
+    ----------
+    name: str
+        Name of the folder to be created
+
+    Returns
+    -------
+    path: Path
+        The path to the temp folder.
+    """
+
+    try:
+        path = Path(mkdtemp(prefix=name))
+        # path = Path(gettempdir() / Path(name))
+        if not (path.exists() and path.is_dir()):
+            path.mkdir(parents=True)
+        return path
+    except TypeError as error:
+        print(f"Error trying to find {path}: {error!s}")
+        return None
 
 
 @task
@@ -105,9 +162,13 @@ def create_dir(path: Union[Path, str]) -> Path:
         return None
 
 
-@task
+@task(log_stdout=True)
 def curl_cmd(
-    url: str, filepath: Union[str, Path], limit_retries: bool = True, **kwargs
+    url: str,
+    filepath: Union[str, Path],
+    limit_retries: bool = True,
+    std_out: bool = False,
+    **kwargs,
 ) -> str:
     """Template for curl command to download file.
 
@@ -152,11 +213,14 @@ def curl_cmd(
     """
     if Path(filepath).exists():
         raise SKIP(f"File {filepath} already exists.")
-    return (
-        f"curl -fL -o {filepath} {url}"
+    cmd = (
+        f"curl -fL '{url}' -o '{filepath}'"
         if limit_retries
-        else f"curl --max-redirs -1 -fL -o {filepath} {url}"
+        else f"curl --max-redirs -1 -fL '{url}' -o '{filepath}'"
     )
+    if std_out:
+        print(cmd)
+    return cmd
 
 
 @task
@@ -183,7 +247,7 @@ def unzip(zipfile: Union[Path, str], out_folder: Union[Path, str] = None):
     return out_folder
 
 
-@task
+@task()
 def list_dir(dir: Union[Path, str]):
     full_paths = [Path(dir) / file for file in os.listdir(dir)]
     return full_paths
@@ -212,42 +276,63 @@ def csv_to_parquet(
 
         return out_file
 
-    # # If given a zip file with multiple csvs
-    # if file.suffix == ".zip":
 
-    #     if out_folder is not None:
-    #         out_folder = Path(out_folder)
-    #     else:
-    #         out_folder = file.parents[0] / file.stem
+@task()
+def xls_to_parquet(
+    file: Union[str, Path], out_file: Union[str, Path] = None, read_excel_kwargs=None,
+) -> Path:
 
-    #     out_folder = create_dir_fun(out_folder)
-    #     # csv_dir = create_dir_fun(out_folder / "csv")
+    file = Path(file)
 
-    #     with ZipFile(file, "r") as zipfile:
-    #         zipfile.extractall(out_folder)
-    #     for csv_file in os.listdir(out_folder):
-    #         full_path = Path(os.path.join(out_folder, csv_file))
-    #         print()
-    #         print(full_path)
-    #         print()
-    #         pq_file = csv_to_parquet(file=full_path, delimiter=delimiter)
-    #         os.remove(full_path)
+    if file.suffix == ".xls":
+        if out_file is not None:
+            out_file = Path(out_file)
+        else:
+            folder = nlu.create_dir_util(file.parent / "parquet")
+            out_file = folder / (file.stem + ".parquet")
+        if read_excel_kwargs:
+            df = pd.read_excel(file, **read_excel_kwargs)
+        else:
+            df = pd.read_excel(file)
+        df.to_parquet(out_file)
+        os.remove(file)
 
-    #     return out_folder
-
+        return out_file
     else:
         print(file)
-        raise TypeError("Only file extensions '.csv' are allowed")
-
-        # raise TypeError("Only file extensions '.csv' and '.zip' are allowed")
+        raise TypeError("Only file extensions '.xls' are allowed")
 
 
 @task
-def list_of_dicts_to_parquet(struct: list, file_name: str, folder_name: str = None):
+def concat_parquet_files(
+    pq_files: List[Union[str, Path]],
+    out_folder: Union[str, Path],
+    out_file: Union[str, Path],
+) -> Path:
+    tables = [pq.read_table(file) for file in pq_files]
+    full_table = concat_tables(tables)
+    o = pq.write_table(full_table, Path(out_folder) / Path(out_file))
+
+    return o
+
+
+@task()
+def replace_suffix(filepath: Union[str, Path], new_suffix: str):
+    filepath = Path(filepath)
+    return filepath.stem + new_suffix
+
+
+@task()
+def create_path(filename, folder):
+    return Path(folder) / Path(filename)
+
+
+@task
+def struct_to_parquet(struct: list, file_name: str, folder_name: str = None):
     df = pd.DataFrame(struct)
     table = PA_Table.from_pandas(df)
     if folder_name:
-        pq_file = Path(gettempdir()) / Path(folder_name + ".parquet") / Path(file_name)
+        pq_file = Path(gettempdir()) / Path(folder_name) / Path(file_name + ".parquet")
     else:
         pq_file = Path(gettempdir()) / Path(file_name + ".parquet")
     with open(pq_file, "wb+") as f:
@@ -289,7 +374,8 @@ def upload_to_gcs(
 
 
 @task
-def gcs_to_bq(
+# TODO: Rename appropriately in all register flows
+def gcs_folder_to_bq(
     gcs_folder: str,
     dataset_name: str,
     config: Config = None,
@@ -314,8 +400,63 @@ def gcs_to_bq(
     dataset_id = nlu.create_bq_dataset(name=dataset_name, gcp=gcp, **kwargs)
 
     # Link parquet files in GCS to tables in BQ dataset
-    tables = nlu.link_parquet_to_bq_dataset(
+    tables = nlu.link_pq_folder_to_bq_dataset(
         gcs_folder=gcs_folder, gcp=gcp, dataset_id=dataset_id
     )
+
+    return tables
+
+
+# @task()
+# def combine_parquet_files(input_folder, target_path):
+#     try:
+#         files = []
+#         for file_name in os.listdir(input_folder):
+#             files.append(pq.read_table(os.path.join(input_folder, file_name)))
+#         with pq.ParquetWriter(
+#             target_path,
+#             files[0].schema,
+#             version="2.0",
+#             compression="gzip",
+#             use_dictionary=True,
+#             data_page_size=2097152,  # 2MB
+#             write_statistics=True,
+#         ) as writer:
+#             for f in files:
+#                 writer.write_table(f)
+#     except Exception as e:
+#         print(e)
+
+
+@task()
+def create_linked_dataset(
+    dataset_name: str,
+    gcs_uris: list,
+    config: Config,
+    gcp_env: str = "dev",
+    prod_env: str = None,
+    **kwargs,
+):
+    """Creates a BQ dataset and nests tables linked to GCS parquet files.
+
+    Parameters
+    ----------
+    dataset_name : str
+        [description]
+    pq_files : [type]
+        [description]
+    """
+    gcp = nlu.set_gcp(config=config, gcp_env=gcp_env, prod_env=prod_env)
+    dataset_id = dataset_name
+
+    # Check if dataset exists and delete if it does
+    # TODO: maybe delete anyway (deleting currently uses not_found_ok to ignore error if does not exist)
+    if nlu.check_bq_dataset(dataset_id=dataset_id, gcp=gcp):
+        nlu.delete_bq_dataset(dataset_id=dataset_id, gcp=gcp)
+
+    # Create dataset and reset dataset_id to new dataset
+    dataset_id = nlu.create_bq_dataset(name=dataset_name, gcp=gcp, **kwargs)
+
+    tables = nlu.create_linked_tables(gcs_uris, gcp, dataset_id)
 
     return tables

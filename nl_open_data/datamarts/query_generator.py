@@ -1,5 +1,6 @@
-from nl_open_data.config import GCP
-from nl_open_data.config import get_config
+from nl_open_data.config import config
+
+# from nl_open_data.config import get_config
 from google.cloud import bigquery
 
 
@@ -17,12 +18,14 @@ def get_dimensions_from_bq(id, schema="cbs", credentials=None, GCP=None):
     """
 
     # initialize client
-    bq = bigquery.Client(credentials=credentials, project=GCP.project)
+    bq = bigquery.Client(
+        credentials=credentials, project=GCP.project_id, location=GCP.location
+    )
 
     # prepare sql query text
     query = f"""
     SELECT Key, Title, Type
-    FROM {GCP.project}.{schema}.{id}_DataProperties
+    FROM {GCP.project_id}.{schema}.{id}_DataProperties
     WHERE Type LIKE '%Dimension%' OR Type LIKE '%Geo%'
     """
     # execute query
@@ -39,12 +42,12 @@ def get_topics_from_bq(id, schema="cbs", credentials=None, GCP=None):
     """
 
     # initialize client
-    bq = bigquery.Client(credentials=credentials, project=GCP.project)
+    bq = bigquery.Client(credentials=credentials, project=GCP.project_id)
 
     # prepare sql query text
     query = f"""
     SELECT Key, Title, Type
-    FROM {GCP.project}.{schema}.{id}_DataProperties
+    FROM {GCP.project_id}.{schema}.{id}_DataProperties
     WHERE Type LIKE '%Topic%'
     """
     # execute query
@@ -67,7 +70,7 @@ def write_select_dimensions(dims_dict):
     for i, (key, title) in enumerate(dims_dict.items()):
         if i == 0:
             string += (
-                f" {key}.Key AS {title.lower().replace(' ', '_')}_code" # no comma for first item
+                f" {key}.Key AS {title.lower().replace(' ', '_')}_code"  # no comma for first item
                 f"\n    , {key}.Title AS {title.lower().replace(' ', '_')}"
             )
         else:
@@ -94,6 +97,7 @@ def write_select_topics(topics_dict):
         string += f"\n    , fct.{key} AS {title.lower().replace(' ', '_').replace('(', '').replace(')', '').replace('%', 'per').replace(',', '')}"
     return string
 
+
 def write_join_dimensions(dims_dict, join_type, id, schema, GCP):
     """Creates the join section of an sql query for dimension tables
 
@@ -111,9 +115,7 @@ def write_join_dimensions(dims_dict, join_type, id, schema, GCP):
     else:
         string = ""
         for key, title in dims_dict.items():
-            string += (
-                f"\n  {join_type.upper()} JOIN {GCP.project}.{schema}.{id}_{key} AS {key} ON {key}.key = fct.{key}"
-            )
+            string += f"\n  {join_type.upper()} JOIN {GCP.project_id}.{schema}.{id}_{key} AS {key} ON {key}.key = fct.{key}"
     return string
 
 
@@ -128,32 +130,34 @@ def flatten_table(id, join_type="INNER", schema="cbs", credentials=None, GCP=Non
 
     # get dimension info
     dims_query = get_dimensions_from_bq(
-        id=id,
-        schema=schema,
-        credentials=credentials,
-        GCP=GCP
-        )
+        id=id, schema=schema, credentials=credentials, GCP=GCP
+    )
 
     # place dimensions in dicts according to type / ALTERNATIVE OPTION - one iterable with 'Type' marked per item?
     # dim_types = ["Dimension", "TimeDimension", "GeoDimension", "GeoDetail"]
-    dims = {row['Key']: row['Title'] for row in dims_query if row['Type']=="Dimension"}
-    time_dims = {row['Key']: row['Title'] for row in dims_query if row['Type']=="TimeDimension"}
-    geo_dims = {row['Key']: row['Title'] for row in dims_query if row['Type']=="GeoDimension"}
-    geo_details = {row['Key']: row['Title'] for row in dims_query if row['Type']=="GeoDetail"}
+    dims = {
+        row["Key"]: row["Title"] for row in dims_query if row["Type"] == "Dimension"
+    }
+    time_dims = {
+        row["Key"]: row["Title"] for row in dims_query if row["Type"] == "TimeDimension"
+    }
+    geo_dims = {
+        row["Key"]: row["Title"] for row in dims_query if row["Type"] == "GeoDimension"
+    }
+    geo_details = {
+        row["Key"]: row["Title"] for row in dims_query if row["Type"] == "GeoDetail"
+    }
 
     # get topics info
     topics_query = get_topics_from_bq(
-        id=id,
-        schema=schema,
-        credentials=credentials,
-        GCP=GCP
+        id=id, schema=schema, credentials=credentials, GCP=GCP
     )
 
     # place topics in a list
-    topics = {row['Key']: row['Title'] for row in topics_query}
+    topics = {row["Key"]: row["Title"] for row in topics_query}
 
     # CREATE statement
-    create = f"CREATE OR REPLACE TABLE {GCP.project}.dso.{title}"
+    create = f"CREATE OR REPLACE TABLE {GCP.project_id}.dso.{title}"
 
     # PARTITION statement #TODO - how to decide on times?? Is it always years?
     partition = ""
@@ -163,21 +167,21 @@ def flatten_table(id, join_type="INNER", schema="cbs", credentials=None, GCP=Non
     select += write_select_topics(topics)
 
     # FROM statement
-    from_statement = f"\n  FROM {GCP.project}.{schema}.{id}_TypedDataSet AS fct"
+    from_statement = f"\n  FROM {GCP.project_id}.{schema}.{id}_TypedDataSet AS fct"
 
     # JOIN statement
-    join = write_join_dimensions(dims_dict=dims, join_type="INNER", id=id, schema=schema, GCP=GCP)
+    join = write_join_dimensions(
+        dims_dict=dims, join_type="INNER", id=id, schema=schema, GCP=GCP
+    )
 
     # concat query
-    query = (
-        create + partition + " AS (" + select + from_statement + join + "\n)"
-    )
-    
+    query = create + partition + " AS (" + select + from_statement + join + "\n)"
+
     return query
 
     # # initialize client
-    # bq = bigquery.Client(credentials=credentials, project=GCP.project)
-    
+    # bq = bigquery.Client(credentials=credentials, project=GCP.project_id)
+
     # # configure job
     # job_config = bigquery.QueryJobConfig(destination=table_id)
 
@@ -187,9 +191,11 @@ def flatten_table(id, join_type="INNER", schema="cbs", credentials=None, GCP=Non
 
 
 def main(GCP):
-    query = flatten_table(id=table_id, join_type="inner", schema=schema, credentials=None, GCP=GCP)
+    query = flatten_table(
+        id=table_id, join_type="inner", schema=schema, credentials=None, GCP=GCP
+    )
     print(query)
-    
+
     # dims_query = get_dimensions_from_bq(
     #     id=table_id,
     #     schema='mlz',
@@ -207,13 +213,13 @@ def main(GCP):
 
 # for local testing purposes
 if __name__ == "__main__":
-    config = get_config("ag")
-    my_gcp = config.gcp
-    table_id = "40060NED"
-    schema = "mlz"
+    # # config = get_config("ag")
+    my_gcp = config.gcp.dev
+    table_id = "83674NED"
+    schema = "cbs_v3_83674NED"
     main(my_gcp)
 
-    # data_properties = get_dimensions_from_bq(id=table_id, GCP=my_gcp, schema='mlz')
+    # data_properties = get_dimensions_from_bq(id=table_id, GCP=my_gcp, schema=schema)
 
     # print(f"The dimensions for table {table_id}:")
     # for row in data_properties:

@@ -10,6 +10,7 @@ TODO: Add docstring
 from datetime import datetime
 from pathlib import Path
 
+# the config object must be imported from config.py before any Prefect imports
 from nl_open_data.config import config
 from prefect import Client
 
@@ -21,6 +22,7 @@ ODATA_REGIONAAL = [  # TODO: check datasets, add and organize
     # Regionale kerncijfers Nederland
     "70072NED",
     # Kerncijfers wijken en buurten
+    "84799NED",  # 2020
     "84583NED",  # 2019
     "84286NED",  # 2018
     "83765NED",  # 2017
@@ -48,9 +50,7 @@ FORCE = False
 
 # run parameters
 STATLINE_VERSION_GROUP_ID = "statline_bq"
-STATLINE_RUN_NAME = (
-    f"regionaal_statline_{datetime.today().date()}_{datetime.today().time()}"
-)
+STATLINE_RUN_NAME = f"regionaal_{datetime.today().date()}_{datetime.today().time()}"
 
 client = Client()  # Local api key has been stored previously
 client.login_to_tenant(tenant_slug=TENANT_SLUG)  # For user-scoped API token
