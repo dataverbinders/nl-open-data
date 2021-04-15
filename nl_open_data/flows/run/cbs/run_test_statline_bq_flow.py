@@ -1,7 +1,11 @@
+# the config object must be imported from config.py before any Prefect imports
 from nl_open_data.config import config
+
 from datetime import datetime
+
 from prefect import Client as PrefectClient
 from dask.distributed import Client as DaskClient
+from box import Box
 
 # Schedules a flow-run on prefect cloud
 
@@ -13,10 +17,12 @@ TENANT_SLUG = "dataverbinders"
 
 # flow parameters
 DATA = ["83583NED", "83765NED"]
+# DATA = ["84750NED"]
 SOURCE = "cbs"
 THIRD_PARTY = False
 GCP_ENV = "dev"
 FORCE = True
+# CONFIG = Box(config)  # BUG: If config is provided here, an error occurs. If it is provided as a default in the Register script, it works
 
 # run parameters
 STATLINE_VERSION_GROUP_ID = "statline_bq"
@@ -28,6 +34,7 @@ statline_parameters = {
     "third_party": THIRD_PARTY,
     "gcp_env": GCP_ENV,
     "force": FORCE,
+    # "config": CONFIG,
 }
 
 if __name__ == "__main__":

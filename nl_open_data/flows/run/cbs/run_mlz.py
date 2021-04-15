@@ -16,7 +16,8 @@ ODATA_MLZ = ["40060NED", "40061NED"]
 SOURCE = "mlz"
 THIRD_PARTY = True
 GCP_ENV = "dev"
-FORCE = False
+FORCE = True
+CONFIG = config
 
 # run parameters
 VERSION_GROUP_ID = "statline_bq"
@@ -29,6 +30,7 @@ if __name__ == "__main__":
         "ids": ODATA_MLZ,
         "source": SOURCE,
         "third_party": THIRD_PARTY,
+        "config": CONFIG,  # TODO: Why does this create an error?
         "gcp_env": GCP_ENV,
         "force": FORCE,
     }
