@@ -4,8 +4,6 @@ from nl_open_data.config import config
 from datetime import datetime
 
 from prefect import Client as PrefectClient
-from dask.distributed import Client as DaskClient
-from box import Box
 
 # Schedules a flow-run on prefect cloud
 
@@ -16,13 +14,18 @@ TENANT_SLUG = "dataverbinders"
 # IP = "127.0.0.1:8888"
 
 # flow parameters
-DATA = ["83583NED", "83765NED"]
+DATA = ["83583NED"]
+# DATA = ["83583NED", "83765NED"]
 # DATA = ["84750NED"]
 SOURCE = "cbs"
 THIRD_PARTY = False
 GCP_ENV = "dev"
 FORCE = True
-# CONFIG = Box(config)  # BUG: If config is provided here, an error occurs. If it is provided as a default in the Register script, it works
+# BUG: If config is provided here, it becomes a dict somewhere along the process and an error occurs when using dot notation.
+# When provided as a default in the Register script, the issue doe not occur.
+# Generally this seems like the wrong way to go about it anyway - we provide the full prefect config via a parameter, just because we add our config to it.
+# CONFIG = config
+# CONFIG = Box(config)
 
 # run parameters
 STATLINE_VERSION_GROUP_ID = "statline_bq"
@@ -38,9 +41,6 @@ statline_parameters = {
 }
 
 if __name__ == "__main__":
-    # cluster = LocalCluster(host=IP)
-    # dask_client = DaskClient(cluster)
-
     prefect_client = PrefectClient()  # Local api key has been stored previously
     prefect_client.login_to_tenant(tenant_slug=TENANT_SLUG)  # For user-scoped API token
 
