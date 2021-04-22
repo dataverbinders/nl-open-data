@@ -1,24 +1,27 @@
-"""Use statline-bq flow to upload the following datasets to GBQ:
+"""Use statline-bq flow to upload all RIVM datasets to GBQ:
 
 TODO: Add docstring?
 
-[^rivm]: https://statline.rivm.nl/#/RIVM/nl/dataset/50052NED/table?ts=1589622516137
+[^rivm]: https://statline.rivm.nl/#/RIVM/nl/
 """
+## the config object must be imported from config.py before any Prefect imports
 from nl_open_data.config import config
 from datetime import datetime
+
 from prefect import Client
+
+from nl_open_data.utils import query_cbs_catalogs
 
 # client parameters
 TENANT_SLUG = "dataverbinders"
 
 # flow parameters
-ODATA_RIVM = [
-    "50052NED"
-]  # https://statline.rivm.nl/portal.html?_la=nl&_catalog=RIVM&tableId=50052NED&_theme=72SOURCE = "mlz"
-SOURCE = "rivm"  # TODO: VERIFY SOURCE??
+SOURCE = "rivm"
 THIRD_PARTY = True
-GCP_ENV = "dev"
+GCP_ENV = "prod"
 FORCE = False
+CONFIG = config
+ODATA_RIVM = query_cbs_catalogs(third_party=THIRD_PARTY, source=SOURCE)[SOURCE]
 
 # run parameters
 VERSION_GROUP_ID = "statline_bq"

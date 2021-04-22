@@ -256,3 +256,67 @@ def create_linked_tables(source_uris: List[str], gcp: GcpProject, dataset_id: st
         tables.append(table)
 
     return tables
+
+
+def query_cbs_catalogs(
+    third_party: bool = False, odata_version: str = "v3", source: str = None
+) -> dict:
+    """Queries dataset ids from CBS catalog and returns a dict with source name as key a list of all related dataset ids as value
+
+    Parameters
+    ----------
+    third_party : bool, default=False
+        Flag to indicate whether to query core or external catatlog
+    odata_version : str, default="v3"
+        version of the odata for this dataset - must be either "v3" or "v4"
+    source : str, default=None
+        The source of the dataset to be used as a WHERE caluse. If None, returns results from all sources
+
+    Returns
+    -------
+    ids : dict
+        collection with source name as keys and all dataset ids from source as list
+    """
+
+    ## Get all v3 dataset ids #TODO: add v4 support
+    bq_client = bigquery.Client()
+
+    # NOTE:
+    # CBS provides both 'Catalog' and 'Source' fields. Both provide mostly similar, but not identical information.
+    # 'Catalog' seems more strictly defined and additionally 'Source' is not present in the v4 catalog,
+    # so we choose to use 'Catalog' for now, but that could change.
+
+    if third_party:
+        select_string = f"""
+            SELECT `Identifier`, `Catalog`
+            FROM `dataverbinders-open-dwh.catalogs.external_{odata_version}`
+        """
+    else:
+        select_string = f"""
+            SELECT `Identifier`, `Catalog`
+            FROM `dataverbinders-open-dwh.catalogs.cbs_{odata_version}`
+        """
+    if source:
+        where_string = f"""
+            WHERE LOWER(Catalog)={source.lower()}
+        """
+    else:
+        where_string = ""
+
+    query = select_string + "\n" + where_string
+    query_job = bq_client.query(query)
+    ids = []
+    sources = []
+    for row in query_job:
+        ids.append(row[0])
+        sources.append(row[1])
+
+    # Separate to different source
+    datasets = dict(zip(ids, sources))
+    sources_set = set(sources)
+
+    ids = {}
+    for source in sources_set:
+        ids[source] = [k for k, v in datasets.items() if v == source]
+
+    return ids
