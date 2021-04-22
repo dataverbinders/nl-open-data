@@ -2,7 +2,7 @@
 name = "nl-open-data"
 version = "0.1.0"
 description = "Datawarehouse of various Dutch open data sources with focus on healthcare and public domain."
-authors = ["Daniel Kapitan <daniel@kapitan.net>"]
+authors = ["Daniel Kapitan <daniel@kapitan.net>", "Amit Gal <amitgalmail@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
