@@ -1325,7 +1325,7 @@ tomlkit = "^0.7.0"
 type = "git"
 url = "https://github.com/dataverbinders/statline-bq.git"
 reference = "master"
-resolved_reference = "09affb5621a416b21d9c537e380188bc53573c72"
+resolved_reference = "d27a11b939938e29c97a78361d65918e6d7f2ec0"
 
 [[package]]
 name = "stringcase"
@@ -1503,7 +1503,7 @@ heapdict = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "9f95380b7a4e4cd47ebc398390f77afe77c75a35570b0496927e12e1ad91aceb"
+content-hash = "69fa0645c4df4c133ca8976b2e01fc6f96441135457242b1a35dc605e9a6154e"
 
 [metadata.files]
 altair = [
