@@ -1,8 +1,7 @@
-"""Use statline-bq flow to all MLZ datasets to GBQ
+"""Use statline-bq flow to all AZW datasets to GBQ
 
 TODO: Add docstring?
 
-[^mlz]: https://mlzopendata.cbs.nl/#/MLZ/nl/
 """
 ## the config object must be imported from config.py before any Prefect imports
 from nl_open_data.config import config
@@ -16,12 +15,12 @@ from nl_open_data.utils import query_cbs_catalogs
 TENANT_SLUG = "dataverbinders"
 
 # flow parameters
-SOURCE = "mlz"
+SOURCE = "iv3"
 THIRD_PARTY = True
 GCP_ENV = "prod"
 FORCE = False
 CONFIG = config
-ODATA_MLZ = query_cbs_catalogs(third_party=THIRD_PARTY, source=SOURCE)[SOURCE]
+ODATA_IV3 = query_cbs_catalogs(third_party=THIRD_PARTY, source=SOURCE)[SOURCE]
 
 # run parameters
 VERSION_GROUP_ID = "statline_bq"
@@ -31,7 +30,7 @@ if __name__ == "__main__":
     prefect_client = PrefectClient()  # Local api key has been stored previously
     prefect_client.login_to_tenant(tenant_slug=TENANT_SLUG)  # For user-scoped API token
     parameters = {
-        "ids": ODATA_MLZ,
+        "ids": ODATA_IV3,
         "source": SOURCE,
         "third_party": THIRD_PARTY,
         # "config": CONFIG, #BUG

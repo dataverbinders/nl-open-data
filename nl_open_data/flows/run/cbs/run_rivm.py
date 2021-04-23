@@ -25,7 +25,7 @@ ODATA_RIVM = query_cbs_catalogs(third_party=THIRD_PARTY, source=SOURCE)[SOURCE]
 
 # run parameters
 VERSION_GROUP_ID = "statline_bq"
-RUN_NAME = f"rivm_{datetime.today().date()}_{datetime.today().time()}"
+RUN_NAME = f"{SOURCE}_{datetime.today().date()}_{datetime.today().time()}"
 
 client = Client()  # Local api key has been stored previously
 client.login_to_tenant(tenant_slug=TENANT_SLUG)  # For user-scoped API token

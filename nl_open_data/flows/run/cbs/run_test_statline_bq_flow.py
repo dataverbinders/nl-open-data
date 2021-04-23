@@ -1,3 +1,5 @@
+"""A run script to test statline_bq_flow
+"""
 # the config object must be imported from config.py before any Prefect imports
 from nl_open_data.config import config
 
@@ -10,9 +12,6 @@ from prefect import Client as PrefectClient
 # Prefect client parameters
 TENANT_SLUG = "dataverbinders"
 
-# # dask parameters
-# IP = "127.0.0.1:8888"
-
 # flow parameters
 DATA = ["83583NED"]
 # DATA = ["83583NED", "83765NED"]
@@ -20,7 +19,7 @@ DATA = ["83583NED"]
 SOURCE = "cbs"
 THIRD_PARTY = False
 GCP_ENV = "dev"
-FORCE = True
+FORCE = False
 # BUG: If config is provided here, it becomes a dict somewhere along the process and an error occurs when using dot notation.
 # When provided as a default in the Register script, the issue doe not occur.
 # Generally this seems like the wrong way to go about it anyway - we provide the full prefect config via a parameter, just because we add our config to it.
