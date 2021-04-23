@@ -4,6 +4,7 @@ from pathlib import Path
 from google.cloud import storage
 from google.cloud import bigquery
 from google.cloud import exceptions
+import google.api_core.exceptions as google_execptions
 
 
 def create_dir_util(path: Union[Path, str]) -> Path:
@@ -249,8 +250,13 @@ def create_linked_tables(source_uris: List[str], gcp: Mapping, dataset_id: str):
         external_config = bigquery.ExternalConfig("PARQUET")
         external_config.source_uris = [uri]
         table.external_data_configuration = external_config
-        table = bq_client.create_table(table, exists_ok=True)
-        tables.append(table)
+        try:
+            table = bq_client.create_table(table, exists_ok=True)
+            tables.append(table)
+        except google_execptions.NotFound:
+            # TODO: Better handling?
+            print(f"URI {uri} Not found")
+            pass
 
     return tables
 
