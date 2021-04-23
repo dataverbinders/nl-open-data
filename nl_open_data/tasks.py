@@ -383,7 +383,6 @@ def upload_to_gcs(
 
 
 @task
-# TODO: Rename appropriately in all register flows
 def gcs_folder_to_bq(
     gcs_folder: str,
     dataset_name: str,
@@ -451,8 +450,19 @@ def create_linked_dataset(
     Parameters
     ----------
     dataset_name : str
-        [description]
-    pq_files : [type]
+        Name of dataset in BQ
+    gcs_uris : list of str
+        List contiaing the gsutil URIS to parquet file to be linked as tables
+    config : Config
+        Config object
+    gcp_env: str, default='dev'
+        determines which GCP configuration to use from config.gcp. Options: ['dev', 'test', 'prod']
+    prod_env : str, default=None
+        Determines which production environmnet to use, if using gcp_env='prod'
+
+    Returns
+    -------
+    tables
         [description]
     """
     gcp = nlu.set_gcp(config=config, gcp_env=gcp_env, prod_env=prod_env)
