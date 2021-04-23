@@ -298,7 +298,7 @@ def query_cbs_catalogs(
         """
     if source:
         where_string = f"""
-            WHERE LOWER(Catalog)={source.lower()}
+            WHERE LOWER(Catalog)='{source.lower()}'
         """
     else:
         where_string = ""
@@ -317,6 +317,6 @@ def query_cbs_catalogs(
 
     ids = {}
     for source in sources_set:
-        ids[source] = [k for k, v in datasets.items() if v == source]
+        ids[source.lower()] = [k for k, v in datasets.items() if v == source]
 
     return ids
