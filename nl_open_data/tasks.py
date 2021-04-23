@@ -107,10 +107,11 @@ def clean_file_name(file: Union[str, Path], chars: str = None) -> Path:
 
 @task
 def remove_dir(path: Union[str, Path]) -> None:
-    try:
-        rmtree(Path(path))
-    except FileNotFoundError:
-        pass
+    if path:
+        try:
+            rmtree(Path(path))
+        except FileNotFoundError:
+            pass
     return None
 
 
