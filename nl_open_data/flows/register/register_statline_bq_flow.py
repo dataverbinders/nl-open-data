@@ -17,8 +17,29 @@ from prefect.storage import GCS
 from prefect.executors import DaskExecutor
 from prefect.triggers import all_finished
 from statline_bq.utils import main
+from statline_bq.utils import (
+    check_gcp_env,
+    check_v4,
+    set_gcp,
+    get_urls,
+    get_metadata_cbs,
+    get_metadata_gcp,
+    get_gcp_modified,
+    skip_dataset,
+)
 
 import nl_open_data.tasks as nlt
+
+# Converting statline-bq functions to tasks
+check_gcp_env = task(check_gcp_env)
+check_v4 = task(check_v4)
+set_gcp = task(set_gcp)
+get_urls = task(get_urls)
+get_metadata_cbs = task(get_metadata_cbs)
+get_metadata_gcp = task(get_metadata_gcp)
+get_gcp_modified = task(get_gcp_modified)
+skip_dataset = task(skip_dataset)
+
 
 # Converting imported functions to tasks
 main = task(main, log_stdout=True)
@@ -57,6 +78,26 @@ with Flow("statline-bq") as statline_flow:
     gcp_env = Parameter("gcp_env", default="dev")
     force = Parameter("force", default=False)
 
+    gcp_env = nlt.lower(gcp_env)
+    odata_versions = check_v4.map(ids)
+    gcp = set_gcp(config, gcp_env, source)
+    urls = get_urls.map(
+        ids, odata_version=odata_versions, third_party=unmapped(third_party),
+    )
+    source_metas = get_metadata_cbs.map(
+        id=ids, odata_version=odata_versions, third_party=unmapped(third_party)
+    )
+    gcp_metas = get_metadata_gcp.map(
+        id=ids, source=unmapped(source), odata_version=odata_versions, gcp=unmapped(gcp)
+    )  # TODO: skip if force=True
+    cbs_modifieds = nlt.get_wrap.map(obj=source_metas, key=unmapped("Modified"))
+    gcp_modifieds = get_gcp_modified.map(
+        gcp_meta=gcp_metas, force=unmapped(force)
+    )  # TODO: skip if force=True
+    skips = skip_dataset.map(
+        cbs_modified=cbs_modifieds, gcp_modified=gcp_modifieds, force=unmapped(force)
+    )
+    go_nogo = nlt.skip_task.map(x=skips)
     local_folders = main.map(
         id=ids,
         source=unmapped(source),
@@ -64,6 +105,7 @@ with Flow("statline-bq") as statline_flow:
         config=unmapped(config),
         gcp_env=unmapped(gcp_env),
         force=unmapped(force),
+        upstream_tasks=[go_nogo],
     )
     remove = nlt.remove_dir.map(local_folders)
 
@@ -102,7 +144,7 @@ if __name__ == "__main__":
     #         "ids": ids,
     #         "source": "cbs",
     #         "third_party": False,
-    #         "force": True,
+    #         "force": False,
     #         "config": CONFIG,
     #         "gcp_env": "dev",
     #     }
