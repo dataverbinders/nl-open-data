@@ -13,11 +13,15 @@ from datetime import datetime
 from nl_open_data.config import config
 from prefect import Client
 
-# client parameters
+# Prefect client parameters
 TENANT_SLUG = "dataverbinders"
 
 client = Client()  # Local api key has been stored previously
 client.login_to_tenant(tenant_slug=TENANT_SLUG)  # For user-scoped API token
+
+# GCP env parameters
+GCP_ENV = "dev"
+PROD_ENV = None
 
 ################################################################################
 # Upload Kerncijfers wijken and buurten to gcs (xls_flow)
@@ -28,9 +32,9 @@ client.login_to_tenant(tenant_slug=TENANT_SLUG)  # For user-scoped API token
 # https://www.cbs.nl/nl-nl/reeksen/kerncijfers-wijken-en-buurten-2004-2020
 
 # flow parameters
-URLS = [
+KWB_URLS = [
     "https://www.cbs.nl/-/media/cbs/dossiers/nederland-regionaal/wijk-en-buurtstatistieken/_exel/kwb-2013.xls",
-    "https://www.cbs.nl/-/media/cbs/dossiers/nederland-regionaal/wijk-en-buurtstatistieken/_exel/kerncijfers-wijken-en-buurten-2014.xls",  # TODO: PyArrow error in conversion to Parquet
+    "https://www.cbs.nl/-/media/cbs/dossiers/nederland-regionaal/wijk-en-buurtstatistieken/_exel/kerncijfers-wijken-en-buurten-2014.xls",
     "https://www.cbs.nl/-/media/cbs/dossiers/nederland-regionaal/wijk-en-buurtstatistieken/_exel/kwb-2015.xls",
     "https://www.cbs.nl/-/media/cbs/dossiers/nederland-regionaal/wijk-en-buurtstatistieken/_exel/kwb-2016.xls",
     "https://www.cbs.nl/-/media/cbs/dossiers/nederland-regionaal/wijk-en-buurtstatistieken/_exel/kwb-2017.xls",
@@ -42,10 +46,8 @@ URLS = [
     # No trivial solution (skip_columns does not exist in read_excel, trying str.replace(".", ",") also fails
     "https://www.cbs.nl/-/media/_excel/2021/12/kwb-2020.xls",
 ]
-GCS_FOLDER = "cbs/kwb"
-GCP_ENV = "dev"
-PROD_ENV = None
-KWARGS = [
+KWB_GCS_FOLDER = "cbs/kwb"
+KWB_KWARGS = [
     {"na_values": [".", "        .", "        .       "]},  # 2013
     {"na_values": [".", "        .", "        .       "]},  # 2014
     {"na_values": [".", "        .", "        .       "]},  # 2015
@@ -60,11 +62,9 @@ KWARGS = [
 VERSION_GROUP_ID = "xls_to_gcs"
 RUN_NAME = f"cbs_helper_kwb_{datetime.today().date()}_{datetime.today().time()}"
 PARAMETERS = {
-    "urls": URLS,
-    "gcs_folder": GCS_FOLDER,
-    "gcp_env": GCP_ENV,
-    "prod_env": PROD_ENV,
-    "read_excel_kwargs": KWARGS,
+    "urls": KWB_URLS,
+    "gcs_folder": KWB_GCS_FOLDER,
+    "read_excel_kwargs": KWB_KWARGS,
 }
 
 # Schedule run
@@ -81,7 +81,7 @@ flow_run_id = client.create_flow_run(
 # 2006-2016 figures are excel files
 
 # flow parameters
-URLS = [
+NBH_URLS = [
     "https://www.cbs.nl/-/media/_excel/2016/17/nabijheid-2006-2016-04-18.xls",
     "https://www.cbs.nl/-/media/_excel/2016/17/nabijheid-2007-2016-04-18.xls",
     "https://www.cbs.nl/-/media/_excel/2016/17/nabijheid-2008-2016-04-18.xls",
@@ -94,9 +94,8 @@ URLS = [
     "https://www.cbs.nl/-/media/_excel/2017/32/nabijheid_wijkbuurt_2015v3.xls",
     "https://www.cbs.nl/-/media/_excel/2017/32/nabijheid_2016.xls",
 ]
-GCS_FOLDER = "cbs/nbh"
+NBH_GCS_FOLDER = "cbs/nbh"
 GCP_ENV = "dev"
-PROD_ENV = None
 KWARGS = [
     {"na_values": [".", "        .", "        .       "]},  # 2006
     {"na_values": [".", "        .", "        .       "]},  # 2007
@@ -115,8 +114,8 @@ KWARGS = [
 VERSION_GROUP_ID = "xls_to_gcs"
 RUN_NAME = f"cbs_helper_nbh_xls_{datetime.today().date()}_{datetime.today().time()}"
 PARAMETERS = {
-    "urls": URLS,
-    "gcs_folder": GCS_FOLDER,
+    "urls": NBH_URLS,
+    "gcs_folder": NBH_GCS_FOLDER,
     "gcp_env": GCP_ENV,
     "PROD_ENV": PROD_ENV,
     "read_excel_kwargs": KWARGS,
@@ -131,12 +130,12 @@ flow_run_id = client.create_flow_run(
 # statline_to_gcs flow
 # 2017 onwards in datasets:
 
-IDS = [
+NBH_IDS = [
     "84334NED",  # 2017
     "84463NED",  # 2018
     "84718NED",  # 2019
 ]
-SOURCE = "cbs"
+NBH_SOURCE = "cbs"
 THIRD_PARTY = False
 GCP_ENV = "dev"
 FORCE = False
@@ -147,10 +146,9 @@ RUN_NAME = (
     f"cbs_helper_nabijheid_statline_{datetime.today().date()}_{datetime.today().time()}"
 )
 PARAMETERS = {
-    "ids": IDS,
-    "source": SOURCE,
+    "ids": NBH_IDS,
+    "source": NBH_SOURCE,
     "third_party": THIRD_PARTY,
-    "gcp_env": GCP_ENV,
     "force": FORCE,
 }
 # Schedule run
@@ -161,12 +159,11 @@ flow_run_id = client.create_flow_run(
 ################################################################################
 
 # Bevolkingsstatistieken per pc4 (statline_gcs_flow)
-IDS = [
+BVS_IDS = [
     "83502NED",
 ]
-SOURCE = "cbs"
+BVS_SOURCE = "cbs"
 THIRD_PARTY = False
-GCP_ENV = "dev"
 FORCE = False
 
 # run parameters
@@ -175,10 +172,9 @@ RUN_NAME = (
     f"cbs_helper_bevolking_pc4_{datetime.today().date()}_{datetime.today().time()}"
 )
 PARAMETERS = {
-    "ids": IDS,
-    "source": SOURCE,
+    "ids": BVS_IDS,
+    "source": BVS_SOURCE,
     "third_party": THIRD_PARTY,
-    "gcp_env": GCP_ENV,
     "force": FORCE,
 }
 
