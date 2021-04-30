@@ -64,6 +64,11 @@ def skip_task(x):
 
 
 @task
+def get_wrap(obj, key):
+    return obj.get(key)
+
+
+@task
 def clean_file_name(file: Union[str, Path], chars: str = None) -> Path:
     """Renames files by replacing certain characters from the filename with an underscore.
 
