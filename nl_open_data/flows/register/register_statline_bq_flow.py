@@ -7,10 +7,6 @@ in 'user_config.toml', which is imported and coupled to the Prefect config objec
 inside 'config.py'. Therefore, anything that is defined in the 'user_config.toml'
 can be accessed by accessing `config`. For example, `config.gcp.dev`.
 """
-
-# the config object must be imported from config.py before any Prefect imports
-from nl_open_data.config import config as CONFIG
-
 from prefect import task, Flow, unmapped, Parameter
 from prefect.run_configs import LocalRun
 from prefect.storage import GCS
@@ -28,6 +24,7 @@ from statline_bq.utils import (
     skip_dataset,
 )
 
+from nl_open_data.config import config as CONFIG
 import nl_open_data.tasks as nlt
 
 # Converting statline-bq functions to tasks
@@ -48,6 +45,7 @@ nlt.remove_dir.trigger = all_finished
 
 VERSION_GROUP_ID = "statline_bq"
 PROJECT_NAME = "nl_open_data"
+
 
 with Flow("statline-bq") as statline_flow:
     """A Prefect flow to upload datasets from CBS Statline to Google BigQuery.

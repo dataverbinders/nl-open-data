@@ -6,6 +6,7 @@ from tempfile import gettempdir, mkdtemp
 from zipfile import ZipFile
 import requests
 
+from box import Box
 from google.cloud import storage
 import pandas as pd
 from pyarrow import Table as PA_Table
@@ -13,7 +14,6 @@ from pyarrow import csv, concat_tables
 import pyarrow.parquet as pq
 from prefect.engine.signals import SKIP
 from prefect import task
-from statline_bq.config import Config
 
 import nl_open_data.utils as nlu
 
@@ -353,7 +353,7 @@ def struct_to_parquet(struct: list, file_name: str, folder_name: str = None):
 def upload_to_gcs(
     to_upload: Union[str, Path],
     gcs_folder: str,
-    config: Config,
+    config: Box,
     source: str = None,
     gcp_env: str = "dev",
     prod_env: str = None,
@@ -387,7 +387,7 @@ def upload_to_gcs(
 def gcs_folder_to_bq(
     gcs_folder: str,
     dataset_name: str,
-    config: Config = None,
+    config: Box = None,
     source: str = None,
     gcp_env: str = "dev",
     prod_env: str = None,
@@ -441,7 +441,7 @@ def gcs_folder_to_bq(
 def create_linked_dataset(
     dataset_name: str,
     gcs_uris: list,
-    config: Config,
+    config: Box,
     gcp_env: str = "dev",
     prod_env: str = None,
     **kwargs,

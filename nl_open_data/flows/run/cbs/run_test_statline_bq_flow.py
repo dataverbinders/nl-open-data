@@ -1,11 +1,14 @@
 """A run script to test statline_bq_flow
 """
 # the config object must be imported from config.py before any Prefect imports
-from nl_open_data.config import config
+# from nl_open_data.config import config
 
 from datetime import datetime
+from pathlib import Path
 
 from prefect import Client as PrefectClient
+
+from nl_open_data.config import config
 
 # Schedules a flow-run on prefect cloud
 
@@ -22,9 +25,8 @@ GCP_ENV = "dev"
 FORCE = False
 # BUG: If config is provided here, it becomes a dict somewhere along the process and an error occurs when using dot notation.
 # When provided as a default in the Register script, the issue doe not occur.
-# Generally this seems like the wrong way to go about it anyway - we provide the full prefect config via a parameter, just because we add our config to it.
-# CONFIG = config
-# CONFIG = Box(config)
+CONFIG = config
+
 
 # run parameters
 STATLINE_VERSION_GROUP_ID = "statline_bq"
