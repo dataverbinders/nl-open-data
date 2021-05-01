@@ -1,11 +1,10 @@
 from typing import Union, List
 from pathlib import Path
 
+from box import Box
 from google.cloud import storage
 from google.cloud import bigquery
 from google.cloud import exceptions
-
-from statline_bq.config import Config, GcpProject
 
 
 def create_dir_util(path: Union[Path, str]) -> Path:
@@ -32,16 +31,14 @@ def create_dir_util(path: Union[Path, str]) -> Path:
         return None
 
 
-def set_gcp(
-    config: Config, gcp_env: str, source: str = None, prod_env: str = None
-) -> GcpProject:
+def set_gcp(config: Box, gcp_env: str, source: str = None, prod_env: str = None) -> Box:
     # TODO: Complete docstring
     """Sets the desired GCP donciguration
 
     Parameters
     ----------
-    config : Config
-        `statline_bq.config.Config` object
+    config : Box
+        A box object holding configuration
     gcp_env : str
         String representing the desired environment between ['dev', 'test', 'prod']
     source : str
@@ -49,8 +46,7 @@ def set_gcp(
 
     Returns
     -------
-    GcpProject
-        A GcpProject class object holding GCP Project parameters (project id, bucket)
+    A Box object holding GCP Project parameters (project id, bucket)
     """
     config_envs = {
         "dev": config.gcp.dev,
@@ -85,15 +81,15 @@ def set_gcp(
         return config_envs[gcp_env][prod_env]
 
 
-def check_bq_dataset(dataset_id: str, gcp: GcpProject) -> bool:
+def check_bq_dataset(dataset_id: str, gcp: Box) -> bool:
     """Check if dataset exists in BQ.
 
     Parameters
     ----------
         - dataset_id : str
             A BQ dataset id
-        - gcp: GcpProject
-            An `nl_open_data.config.GcpProject` object, holding GCP project parameters
+        - gcp: Box
+            A box object, holding GCP project parameters
 
     Returns
     -------
@@ -109,7 +105,7 @@ def check_bq_dataset(dataset_id: str, gcp: GcpProject) -> bool:
         return False
 
 
-def delete_bq_dataset(dataset_id: str, gcp: GcpProject) -> None:
+def delete_bq_dataset(dataset_id: str, gcp: Box) -> None:
     """Delete an exisiting dataset from Google Big Query.
 
     If dataset does not exists, does nothing.
@@ -118,8 +114,8 @@ def delete_bq_dataset(dataset_id: str, gcp: GcpProject) -> None:
     ----------
         dataset_id : str
             A BQ dataset id
-        gcp : GcpProject
-            An `nl_open_data.config.GcpProject` object, holding GCP project parameters
+        gcp : Box
+            A Box object, holding GCP project parameters
 
     Returns
     -------
@@ -136,7 +132,7 @@ def delete_bq_dataset(dataset_id: str, gcp: GcpProject) -> None:
 
 
 def create_bq_dataset(
-    name: str, gcp: GcpProject, source: str = None, description: str = None,
+    name: str, gcp: Box, source: str = None, description: str = None,
 ) -> str:
     """Creates a dataset in Google Big Query. If dataset exists already exists, does nothing.
 
@@ -144,8 +140,8 @@ def create_bq_dataset(
     ----------
     name : str
         The name of the dataset. If no source is given will be used as dataset_id
-    gcp : GcpProject
-        An `nl_open_data.config.GcpProject` object, holding GCP project parameters
+    gcp : Box
+        A Box object, holding GCP project parameters
     description : str, default = None
         The description of the dataset
     source: str, default = None
@@ -187,7 +183,7 @@ def create_bq_dataset(
         return dataset.dataset_id
 
 
-def link_pq_folder_to_bq_dataset(gcs_folder: str, gcp: GcpProject, dataset_id: str):
+def link_pq_folder_to_bq_dataset(gcs_folder: str, gcp: Box, dataset_id: str):
 
     # Get blobs within gcs_folder
     storage_client = storage.Client(project=gcp.project_id)
@@ -222,14 +218,14 @@ def link_pq_folder_to_bq_dataset(gcs_folder: str, gcp: GcpProject, dataset_id: s
     return tables
 
 
-def create_linked_tables(source_uris: List[str], gcp: GcpProject, dataset_id: str):
+def create_linked_tables(source_uris: List[str], gcp: Box, dataset_id: str):
     """Takes a list of GCS uris and creates a linked table per uri nested under the given dataset_id
 
     Parameters
     ----------
     source_uris : List[str]
         [description]
-    gcp : GcpProject
+    gcp : Box
         [description]
     dataset_id : str
         [description]
