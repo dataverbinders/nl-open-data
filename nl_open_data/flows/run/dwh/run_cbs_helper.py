@@ -9,9 +9,11 @@
 
 from datetime import datetime
 
-# the config object must be imported from config.py before any Prefect imports
-from nl_open_data.config import config
-from prefect import Client
+from prefect import Flow, Client
+from prefect.tasks.prefect import StartFlowRun
+
+from nl_open_data.config import config as CONFIG
+from nl_open_data.utils import get_gcs_uris
 
 # Prefect client parameters
 TENANT_SLUG = "dataverbinders"
@@ -22,6 +24,11 @@ client.login_to_tenant(tenant_slug=TENANT_SLUG)  # For user-scoped API token
 # GCP env parameters
 GCP_ENV = "dev"
 PROD_ENV = None
+
+# General script parameters
+SOURCE = "cbs"
+RUN_TIME = f"{datetime.today().date()}_{datetime.today().time()}"
+PROJECT = "nl_open_data"
 
 ################################################################################
 # Upload Kerncijfers wijken and buurten to gcs (xls_flow)
@@ -60,7 +67,7 @@ KWB_KWARGS = [
 
 # run parameters
 VERSION_GROUP_ID = "xls_to_gcs"
-RUN_NAME = f"cbs_helper_kwb_{datetime.today().date()}_{datetime.today().time()}"
+RUN_NAME = f"cbs_helper_kwb_{RUN_TIME}"
 PARAMETERS = {
     "urls": KWB_URLS,
     "gcs_folder": KWB_GCS_FOLDER,
@@ -68,6 +75,13 @@ PARAMETERS = {
 }
 
 # Schedule run
+kwb_to_gcs_flow = StartFlowRun(
+    flow_name=VERSION_GROUP_ID,
+    project_name=PROJECT,
+    run_name=RUN_NAME,
+    parameters=PARAMETERS,
+    wait=True,
+)
 flow_run_id = client.create_flow_run(
     version_group_id=VERSION_GROUP_ID, run_name=RUN_NAME, parameters=PARAMETERS,
 )
@@ -112,7 +126,7 @@ KWARGS = [
 
 # run parameters
 VERSION_GROUP_ID = "xls_to_gcs"
-RUN_NAME = f"cbs_helper_nbh_xls_{datetime.today().date()}_{datetime.today().time()}"
+RUN_NAME = f"cbs_helper_nbh_xls_{RUN_TIME}"
 PARAMETERS = {
     "urls": NBH_URLS,
     "gcs_folder": NBH_GCS_FOLDER,
@@ -135,16 +149,14 @@ NBH_IDS = [
     "84463NED",  # 2018
     "84718NED",  # 2019
 ]
-NBH_SOURCE = "cbs"
+NBH_SOURCE = SOURCE
 THIRD_PARTY = False
 GCP_ENV = "dev"
 FORCE = False
 
 # run parameters
 VERSION_GROUP_ID = "statline_gcs"
-RUN_NAME = (
-    f"cbs_helper_nabijheid_statline_{datetime.today().date()}_{datetime.today().time()}"
-)
+RUN_NAME = f"cbs_helper_nabijheid_statline_{RUN_TIME}"
 PARAMETERS = {
     "ids": NBH_IDS,
     "source": NBH_SOURCE,
@@ -162,15 +174,13 @@ flow_run_id = client.create_flow_run(
 BVS_IDS = [
     "83502NED",
 ]
-BVS_SOURCE = "cbs"
+BVS_SOURCE = SOURCE
 THIRD_PARTY = False
 FORCE = False
 
 # run parameters
 VERSION_GROUP_ID = "statline_gcs"
-RUN_NAME = (
-    f"cbs_helper_bevolking_pc4_{datetime.today().date()}_{datetime.today().time()}"
-)
+RUN_NAME = f"cbs_helper_bevolking_pc4_{RUN_TIME}"
 PARAMETERS = {
     "ids": BVS_IDS,
     "source": BVS_SOURCE,
@@ -187,7 +197,47 @@ flow_run_id = client.create_flow_run(
 
 ################################################################################
 # Create dataset(/s) (gcs_to_bq_flow)
-# TODO: When more then 1 flow can be run at the same time, this flow should be scheduled only after the previous ones are done
+# TODO: these flows should be scheduled only after the previous ones are done
 # See https://docs.prefect.io/core/idioms/flow-to-flow.html#scheduling-a-flow-of-flows for more info.
 
+#####################
+# KWB dataset
+# flow parameters
+URIS = get_gcs_uris(
+    gcs_folder=KWB_GCS_FOLDER, source=SOURCE, config=CONFIG, gcp_env=GCP_ENV
+)
+DATASET_NAME = "cbs_kwb"
+DESCRIPTION = "ADD DESCRIPTION HERE"  # TODO: Add description
+
+# run parameters
+VERSION_GROUP_ID = "gcs_to_bq"
+RUN_NAME = f"gcs_to_bq_kwb_{RUN_TIME}"
+PARAMETERS = {
+    "uris": URIS,
+    "dataset_name": DATASET_NAME,
+    # "config": CONFIG,
+    "gcp_env": GCP_ENV,
+    "prod_env": PROD_ENV,
+    "description": DESCRIPTION,
+}
+
+# Schedule run
+kwb_gcs_to_bq_flow = StartFlowRun(
+    flow_name=VERSION_GROUP_ID,
+    project_name=PROJECT,
+    run_name=RUN_NAME,
+    parameters=PARAMETERS,
+    wait=True,
+)
+flow_run_id = client.create_flow_run(
+    version_group_id=VERSION_GROUP_ID, run_name=RUN_NAME, parameters=PARAMETERS,
+)
 ################################################################################
+# Build flow of flows
+
+# TODO: NOt sure how this is supposed to work.
+# with Flow("cbs_helper") as flow:
+#     kwb_gcs_to_bq = kwb_gcs_to_bq_flow(upstream_tasks=[kwb_to_gcs_flow])
+
+# flow.run()
+# flow.register(project_name=PROJECT, version_group_id="cbs_helper")

@@ -1,4 +1,4 @@
-from typing import Union, List, Mapping
+from typing import Union, List, Mapping, Sequence
 from pathlib import Path
 
 from google.cloud import storage
@@ -218,6 +218,34 @@ def link_pq_folder_to_bq_dataset(gcs_folder: str, gcp: Mapping, dataset_id: str)
             tables.append(table)
 
     return tables
+
+
+def get_gcs_uris(
+    gcs_folder: str, source: str, config: Mapping, gcp_env: str
+) -> Sequence:
+    """Returns all uris of files in a GCS folder
+
+    Parameters
+    ----------
+    gcs_folder : str
+        folder in GCS
+    source : str
+        source of files in folder
+    config : Mapping
+        configuration object containing GCP environments details
+    gcp_env : str
+        string to determine which GCP environment to use
+
+    Returns
+    -------
+    Sequence
+        [description]
+    """
+    gcp = set_gcp(config=config, gcp_env=gcp_env, source=source)
+    client = storage.Client(project=gcp.project_id)
+    blobs = client.list_blobs(gcp.bucket, prefix=gcs_folder)
+    uris = ["gs://" + gcp.bucket + "/" + blob.name for blob in blobs]
+    return uris
 
 
 def create_linked_tables(source_uris: List[str], gcp: Mapping, dataset_id: str):
