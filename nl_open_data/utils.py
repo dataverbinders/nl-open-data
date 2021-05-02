@@ -1,7 +1,6 @@
-from typing import Union, List
+from typing import Union, List, Mapping
 from pathlib import Path
 
-from box import Box
 from google.cloud import storage
 from google.cloud import bigquery
 from google.cloud import exceptions
@@ -31,7 +30,9 @@ def create_dir_util(path: Union[Path, str]) -> Path:
         return None
 
 
-def set_gcp(config: Box, gcp_env: str, source: str = None, prod_env: str = None) -> Box:
+def set_gcp(
+    config: Mapping, gcp_env: str, source: str = None, prod_env: str = None
+) -> Mapping:
     # TODO: Complete docstring
     """Sets the desired GCP donciguration
 
@@ -81,7 +82,7 @@ def set_gcp(config: Box, gcp_env: str, source: str = None, prod_env: str = None)
         return config_envs[gcp_env][prod_env]
 
 
-def check_bq_dataset(dataset_id: str, gcp: Box) -> bool:
+def check_bq_dataset(dataset_id: str, gcp: Mapping) -> bool:
     """Check if dataset exists in BQ.
 
     Parameters
@@ -105,7 +106,7 @@ def check_bq_dataset(dataset_id: str, gcp: Box) -> bool:
         return False
 
 
-def delete_bq_dataset(dataset_id: str, gcp: Box) -> None:
+def delete_bq_dataset(dataset_id: str, gcp: Mapping) -> None:
     """Delete an exisiting dataset from Google Big Query.
 
     If dataset does not exists, does nothing.
@@ -132,7 +133,7 @@ def delete_bq_dataset(dataset_id: str, gcp: Box) -> None:
 
 
 def create_bq_dataset(
-    name: str, gcp: Box, source: str = None, description: str = None,
+    name: str, gcp: Mapping, source: str = None, description: str = None,
 ) -> str:
     """Creates a dataset in Google Big Query. If dataset exists already exists, does nothing.
 
@@ -183,7 +184,7 @@ def create_bq_dataset(
         return dataset.dataset_id
 
 
-def link_pq_folder_to_bq_dataset(gcs_folder: str, gcp: Box, dataset_id: str):
+def link_pq_folder_to_bq_dataset(gcs_folder: str, gcp: Mapping, dataset_id: str):
 
     # Get blobs within gcs_folder
     storage_client = storage.Client(project=gcp.project_id)
@@ -218,7 +219,7 @@ def link_pq_folder_to_bq_dataset(gcs_folder: str, gcp: Box, dataset_id: str):
     return tables
 
 
-def create_linked_tables(source_uris: List[str], gcp: Box, dataset_id: str):
+def create_linked_tables(source_uris: List[str], gcp: Mapping, dataset_id: str):
     """Takes a list of GCS uris and creates a linked table per uri nested under the given dataset_id
 
     Parameters
