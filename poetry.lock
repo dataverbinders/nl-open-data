@@ -1288,7 +1288,7 @@ description = "Library to upload CBS open datasets into Google Cloud Platform"
 category = "main"
 optional = false
 python-versions = "^3.8"
-develop = true
+develop = false
 
 [package.dependencies]
 click = "^7.1.2"
@@ -1305,8 +1305,10 @@ requests = "^2.24.0"
 toml = "^0.10.2"
 
 [package.source]
-type = "directory"
-url = "../statline-bq"
+type = "git"
+url = "https://github.com/dataverbinders/statline-bq.git"
+reference = "master"
+resolved_reference = "6822ada66db95346d9362ca47086caaa7a275c94"
 
 [[package]]
 name = "stringcase"
@@ -1484,7 +1486,7 @@ heapdict = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "71f329c4bc3a691cdd29ad827f8542a6ccf94dfaae482257be17e229f44e804d"
+content-hash = "69fa0645c4df4c133ca8976b2e01fc6f96441135457242b1a35dc605e9a6154e"
 
 [metadata.files]
 altair = [
