@@ -152,15 +152,17 @@ NBH_IDS = [
 NBH_SOURCE = SOURCE
 THIRD_PARTY = False
 GCP_ENV = "dev"
+ENDPOINT = "gcs"
 FORCE = False
 
 # run parameters
-VERSION_GROUP_ID = "statline_gcs"
+VERSION_GROUP_ID = "statline_bq"
 RUN_NAME = f"cbs_helper_nabijheid_statline_{RUN_TIME}"
 PARAMETERS = {
     "ids": NBH_IDS,
     "source": NBH_SOURCE,
     "third_party": THIRD_PARTY,
+    "endpoint": ENDPOINT,
     "force": FORCE,
 }
 # Schedule run
@@ -176,15 +178,17 @@ BVS_IDS = [
 ]
 BVS_SOURCE = SOURCE
 THIRD_PARTY = False
+ENDPOINT = "gcs"
 FORCE = False
 
 # run parameters
-VERSION_GROUP_ID = "statline_gcs"
+VERSION_GROUP_ID = "statline_bq"
 RUN_NAME = f"cbs_helper_bevolking_pc4_{RUN_TIME}"
 PARAMETERS = {
     "ids": BVS_IDS,
     "source": BVS_SOURCE,
     "third_party": THIRD_PARTY,
+    "endpoint": ENDPOINT,
     "force": FORCE,
 }
 
