@@ -14,10 +14,11 @@ from prefect.executors import DaskExecutor
 from prefect.triggers import all_finished
 from statline_bq.statline import _check_v4, _get_urls, get_metadata_cbs
 from statline_bq.gcpl import _set_gcp, _get_metadata_gcp
-from statline_bq.utils import _check_gcp_env  # get_gcp_modified,
+from statline_bq.utils import _check_gcp_env, _create_named_dir
 from statline_bq.main import main, _skip_dataset
 
 from nl_open_data.config import config as CONFIG
+from nl_open_data.tasks import remove_dir
 import nl_open_data.tasks as nlt
 
 # Converting statline-bq functions to tasks
@@ -27,14 +28,12 @@ set_gcp = task(_set_gcp)
 get_urls = task(_get_urls)
 get_metadata_cbs = task(get_metadata_cbs)
 get_metadata_gcp = task(_get_metadata_gcp)
-# get_gcp_modified = task(_get_gcp_modified)
 skip_dataset = task(_skip_dataset)
+create_named_dir = task(_create_named_dir)
+main = task(main)
 
-
-# Converting imported functions to tasks
-main = task(main, log_stdout=True)
 # Always clean up at end
-nlt.remove_dir.trigger = all_finished
+remove_dir.trigger = all_finished
 
 VERSION_GROUP_ID = "statline_bq"
 PROJECT_NAME = "nl_open_data"
@@ -87,7 +86,9 @@ with Flow("statline-bq") as statline_flow:
     config = Parameter("config", default=CONFIG)
     gcp_env = Parameter("gcp_env", default="dev")
     endpoint = Parameter("endpoint", default="bq")
-    local_dir = Parameter("local_dir", default=None)
+    local_dir = Parameter(
+        "local_dir", default=None
+    )  # TODO: how to manage in a mapped context? is it even needed here?
     force = Parameter("force", default=False)
     credentials = Parameter("credentials", default=None)
 
@@ -111,30 +112,34 @@ with Flow("statline-bq") as statline_flow:
         config=unmapped(config),
         gcp_env=unmapped(gcp_env),
         force=unmapped(force),
+        credentials=unmapped(credentials),
         upstream_tasks=[go_nogo],
     )
-    # remove = nlt.remove_dir.map(local_folders) #TODO: How to ensure clean up?
+    # This returns the directories used in main, possibly recreating them if they were properly deleted in main
+    local_folders = create_named_dir.map(
+        id=ids,
+        odata_version=odata_versions,
+        source=unmapped(source),
+        config=unmapped(config),
+        upstream_tasks=[pq_files],
+        # BUG: Why is this needed? setting "remove_dir.trigger = all_finished" should have been sufficient, but it isn't
+        # This dependency is set to ensure that remove_dir (which has a data dependency on this task) is run after main
+    )
+    remove = remove_dir.map(local_folders)
+
 
 if __name__ == "__main__":
     # Register flow
     statline_flow.storage = GCS(
-        project="dataverbinders-dev",
-        bucket="dataverbinders-dev-prefect",  # TODO: Switch to using config (config.gcp.dev.project_id, etc.)
+        project=CONFIG.gcp.dev.project_id, bucket=f"{CONFIG.gcp.dev.bucket}-prefect",
     )
     statline_flow.run_config = LocalRun(labels=["nl-open-data-vm-1"])
-    statline_flow.executor = DaskExecutor(
-        # cluster_class="LocalCluster",
-        # cluster_kwargs={"n_workers": 8},
-        # debug=True,
-        # processes=True,
-        # silence_logs=100, # TODO (?) : find out what the number stands for
+    statline_flow.executor = DaskExecutor()
+    flow_id = statline_flow.register(
+        project_name=PROJECT_NAME, version_group_id=VERSION_GROUP_ID
     )
-    # flow_id = statline_flow.register(
-    #     project_name=PROJECT_NAME, version_group_id=VERSION_GROUP_ID
-    # )
-
     # Run locally
-    ids = ["83583NED"]
+    # ids = ["83583NED"]
     # ids = ["83583NED", "83765NED", "84799NED", "84583NED", "84286NED"]
     # mlz_ids = ["40015NED", "40080NED", "40081NED"]
     # statline_flow.executor = DaskExecutor(
@@ -144,17 +149,16 @@ if __name__ == "__main__":
     #     # processes=True,
     #     # silence_logs=100, # TODO (?) : find out what the number stands for
     # )
-
-    state = statline_flow.run(
-        parameters={
-            "ids": ids,
-            "source": "cbs",
-            "third_party": False,
-            "force": True,
-            "config": CONFIG,
-            "gcp_env": "dev",
-        }
-    )
+    # state = statline_flow.run(
+    #     parameters={
+    #         "ids": ids,
+    #         "source": "cbs",
+    #         "third_party": False,
+    #         "force": True,
+    #         "config": CONFIG,
+    #         "gcp_env": "dev",
+    #     }
+    # )
     # state = statline_flow.run(
     #     parameters={
     #         "ids": mlz_ids,
