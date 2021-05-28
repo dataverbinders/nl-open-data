@@ -351,3 +351,20 @@ def query_cbs_catalogs(
         ids[source.lower()] = [k for k, v in datasets.items() if v == source]
 
     return ids
+
+
+# if __name__ == "__main__":
+#     from nl_open_data.config import config
+
+#     gcp = set_gcp(config, "prod", source="external")
+#     gcs_folder = "uwv/open_match_data/20210525"
+
+#     # storage_client = storage.Client(project=gcp.project_id)
+#     # blobs = storage_client.list_blobs(gcp.bucket, prefix=gcs_folder)
+#     # names = [blob.name for blob in blobs]
+#     # print(names)
+
+#     link_pq_folder_to_bq_dataset(
+#         gcs_folder=gcs_folder, gcp=gcp, dataset_id="uwv_open_match_data",
+#     )
+
