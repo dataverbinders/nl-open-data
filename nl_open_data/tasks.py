@@ -1,4 +1,4 @@
-from typing import Union, List
+from typing import Union, List, Iterable
 from pathlib import Path
 import os
 from shutil import rmtree
@@ -21,6 +21,11 @@ import nl_open_data.utils as nlu
 @task
 def path_wrap(string):
     return Path(string)
+
+
+@task
+def stem_wrap(p: Union[Path, str]):
+    return Path(p).stem
 
 
 @task
@@ -101,7 +106,7 @@ def clean_file_name(file: Union[str, Path], chars: str = None) -> Path:
     """
     path = Path(file)
     if not chars:
-        chars = "-.()"
+        chars = "-.()%"
     new_stem = path.stem
     for char in chars:
         new_stem = new_stem.replace(char, "_")
@@ -257,19 +262,36 @@ def unzip(zipfile: Union[Path, str], out_folder: Union[Path, str] = None):
 
 
 @task()
-def list_dir(dir: Union[Path, str]):
-    full_paths = [Path(dir) / file for file in os.listdir(dir)]
+def list_dir(folder: Union[Path, str], suffix: Iterable):
+    folder = Path(folder)
+    if suffix[0] != ".":
+        suffix = "." + suffix
+    full_paths = [file for file in folder.iterdir() if file.suffix == suffix]
     return full_paths
 
 
-@task
+# def list_dir(folder: Union[Path, str], suffixes: Iterable):
+#     folder = Path(folder)
+#     paths = {}
+#     for suffix in suffixes:
+#         if suffix[0] != ".":
+#             suffix = "." + suffix
+#         full_paths = [
+#             file for file in folder.iterdir() if file.suffix == suffix
+#         ]
+#         paths[suffix] = full_paths
+#     return paths
+
+
+@task(log_stdout=True)
 def csv_to_parquet(
     file: Union[str, Path],
     out_file: Union[str, Path] = None,
     # out_folder: Union[str, Path] = None,
     delimiter: str = ",",
+    encoding: str = "utf-8"
+    # TODO Add args, kwargs, to give to read_csv?
 ) -> Path:
-
     file = Path(file)
 
     if file.suffix == ".csv":
@@ -279,7 +301,11 @@ def csv_to_parquet(
             folder = nlu.create_dir_util(file.parents[0] / "parquet")
             out_file = folder / (file.stem + ".parquet")
             # out_file = Path("".join(str(file).split(".")[:-1]) + ".parquet")
-        table = csv.read_csv(file, parse_options=csv.ParseOptions(delimiter=delimiter))
+        table = csv.read_csv(
+            file,
+            read_options=csv.ReadOptions(encoding=encoding),
+            parse_options=csv.ParseOptions(delimiter=delimiter),
+        )
         pq.write_table(table, out_file)  # TODO -> set proper data types in parquet file
         os.remove(file)
 
@@ -326,14 +352,17 @@ def concat_parquet_files(
 
 
 @task()
-def replace_suffix(filepath: Union[str, Path], new_suffix: str):
-    filepath = Path(filepath)
-    return filepath.stem + new_suffix
+def replace_suffix(filepath: Union[List, str, Path], new_suffix: str):
+    if isinstance(filepath, list):
+        return [replace_suffix(Path(path), new_suffix) for path in filepath]
+    else:
+        filepath = Path(filepath)
+        return filepath.stem + new_suffix
 
 
 @task()
-def create_path(filename, folder):
-    return Path(folder) / Path(filename)
+def create_path(left, right):
+    return Path(left) / Path(right)
 
 
 @task
