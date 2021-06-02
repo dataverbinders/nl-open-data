@@ -1,11 +1,6 @@
-# %%
-"""Registering a Prefect Flow downloading a zipped folder with csv files.
-
-TODO: Docstring
-
+"""Registering a Prefect Flow downloading a zipped folder containing csv files.
 """
 # the config object must be imported from config.py before any Prefect imports
-from datetime import datetime
 from pathlib import Path
 
 from prefect import Flow, unmapped, Parameter, flatten
@@ -30,7 +25,13 @@ nlt.unzip.skip_on_upstream_skip = False
 nlt.remove_dir.trigger = all_finished
 
 with Flow("zipped_csv") as zip_flow:
-    """[SUMMARY]
+    """a Prefect Flow downloading a zipped folder containing csv files.
+    
+    This flow takes a list of urls, and assumes each url points to a zip file. It further assumes
+    the zip file contains one or more csv files, in an arbitrarly deep folder.
+
+    The csv files are converted to parquet files, and uploaded to GCS, into a single specific folder.
+    In other words - this flow should be used to process multiple csv files all pertaining to a single dataset.
 
     Parameters
     ----------
@@ -46,12 +47,6 @@ with Flow("zipped_csv") as zip_flow:
         Determines which GCP environment to use from config.gcp
     prod_env : str
         If gcp_env = "prod", determines which GCP environemnt to use from config.gcp.prod
-    # bq_dataset_name : str
-    #     The dataset name to use when creating in BQ
-    # bq_dataset_description : str
-    #     The dataset description to use when creating in BQ
-    # source : str
-    #     The source of the data, used for naming and folder placements in GCS and BQ
     """
 
     urls = Parameter("urls")
@@ -60,11 +55,6 @@ with Flow("zipped_csv") as zip_flow:
     gcs_folder = Parameter("gcs_folder")
     gcp_env = Parameter("gcp_env", default="dev")
     prod_env = Parameter("prod_env", default=None)
-    # TODO: move following 3 gcs_to_bq parameters to a separate flow
-    # bq_dataset_name = Parameter("bq_dataset_name")
-    # bq_dataset_description = Parameter("bq_dataset_description", default=None)
-    # source = Parameter("source", required=False)
-
     # For local testing
     # local_folder = nlt.create_dir(Path("." / Path("zipped_csv_flow")))
     local_folder = nlt.create_temp_dir("zipped_csv_flow")
@@ -101,8 +91,6 @@ with Flow("zipped_csv") as zip_flow:
         out_file=pq_filepaths,
         delimiter=unmapped(csv_delimiter),
         encoding=unmapped(encoding),
-        # TODO: Add encoding parameter (8859 for UWV data). Preferably using **kwargs
-        # upstream_tasks=[pq_filepaths, csv_files],
     )
     clean_files = nlt.clean_file_name.map(pq_files)
     gcs_ids = nlt.upload_to_gcs.map(
@@ -110,18 +98,11 @@ with Flow("zipped_csv") as zip_flow:
         gcs_folder=unmapped(gcs_folder),
         config=unmapped(config),
         gcp_env=unmapped(gcp_env),
-        # upstream_tasks=[clean_files],
+        prod_env=unmapped(prod_env),
     )
-    # tables = nlt.gcs_folder_to_bq(  # TODO: separate to different flow
-    #     gcs_folder=gcs_folder,
-    #     dataset_name=bq_dataset_name,
-    #     config=config,  # TODO: Why is this not unmapped, and it works??
-    #     gcp_env=gcp_env,
-    #     source=source,
-    #     description=bq_dataset_description,
-    #     upstream_tasks=[gcs_ids],
-    # )
-    # nlt.remove_dir(local_folder, upstream_tasks=[gcs_ids])
+    nlt.remove_dir(local_folder, upstream_tasks=[gcs_ids])
+
+zip_flow.set_reference_tasks([gcs_ids])
 
 if __name__ == "__main__":
     # Register flow
@@ -132,47 +113,39 @@ if __name__ == "__main__":
     # zip_flow.run_config = LocalRun(labels=["nl-open-data-preemptible-1"])
     zip_flow.run_config = LocalRun(labels=["nl-open-data-vm-1"])
     zip_flow.executor = DaskExecutor(cluster_kwargs={"n_workers": 8},)
-    # flow_id = zip_flow.register(
-    #     project_name=PROJECT_NAME, version_group_id=VERSION_GROUP_ID
-    # )
+    flow_id = zip_flow.register(
+        project_name=PROJECT_NAME, version_group_id=VERSION_GROUP_ID
+    )
 
     ###############################################################################
 
-    # Run Locally
-    # zip_flow.executor = LocalDaskExecutor()
-    # flow parameters
-    SOURCE = "cbs"
-    URL_PC6HUISNR = [
-        "https://www.cbs.nl/-/media/_excel/2019/42/2019-cbs-pc6huisnr20190801_buurt.zip"
-    ]
+    # # Run Locally
+    # # flow parameters
+    # SOURCE = "uwv"
+    # # URL_PC6HUISNR = [
+    # #     "https://www.cbs.nl/-/media/_excel/2019/42/2019-cbs-pc6huisnr20190801_buurt.zip"
+    # # ]
     # UWV_URLS_SAMPLE = [
     #     "https://data.overheid.nl/sites/default/files/dataset/92f2ea2e-2490-49e0-ad4b-cb48e1ba6840/resources/UWVopenmatch%2020191126.zip",
     #     "https://data.overheid.nl/sites/default/files/dataset/92f2ea2e-2490-49e0-ad4b-cb48e1ba6840/resources/UWVopenmatch%2020191203.zip",
     # ]
-    # LOCAL_FOLDER = str(
-    #     Path(__file__).parent / config.paths.temp
-    # )  # TODO: organize better for deployment?
-    CSV_DELIMITER = ";"
+    # CSV_DELIMITER = ";"
     # ENCODING = "8859"
-    BQ_DATASET_NAME = "buurt_wijk_gemeente_pc"
+    # # BQ_DATASET_NAME = "buurt_wijk_gemeente_pc"
     # BQ_DATASET_NAME = "open_match_data"
-    GCS_FOLDERS = (
-        SOURCE
-        + "/"
-        + BQ_DATASET_NAME
-        + "/"
-        + str(datetime.today().date().strftime("%Y%m%d"))
-    )
-    # BQ_DATASET_DESCRIPTION = "CBS definitions for geographical division on various granularity levels"  # TODO: Better description
-    state = zip_flow.run(
-        parameters={
-            "urls": URL_PC6HUISNR,
-            "csv_delimiter": CSV_DELIMITER,
-            # "encoding": ENCODING,
-            "gcs_folders": GCS_FOLDERS,
-            # "bq_dataset_name": BQ_DATASET_NAME,
-            # "bq_dataset_description": BQ_DATASET_DESCRIPTION,
-            # "source": SOURCE,
-        }
-    )
-    ref = zip_flow.get_tasks()
+    # GCS_FOLDER = (
+    #     SOURCE
+    #     + "/"
+    #     + BQ_DATASET_NAME
+    #     + "/"
+    #     + str(datetime.today().date().strftime("%Y%m%d"))
+    # )
+    # state = zip_flow.run(
+    #     parameters={
+    #         "urls": UWV_URLS_SAMPLE,
+    #         "csv_delimiter": CSV_DELIMITER,
+    #         "encoding": ENCODING,
+    #         "gcs_folder": GCS_FOLDER,
+    #     }
+    # )
+    # ref = zip_flow.get_tasks()
