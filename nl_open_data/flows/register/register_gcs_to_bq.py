@@ -9,6 +9,24 @@ from nl_open_data.config import config as CONFIG
 import nl_open_data.tasks as nlt
 
 with Flow("gcs_to_bq") as gcs_to_bq_flow:
+    """A flow to create a BQ dataset from a list of GCS uris to parquet files.
+
+    This flows takes in a list of GS uris, assumes that each uri points at a parquet file,
+    and creates a new BQ dataset, where each uri is an external table in the dataset.
+    
+    uris : list[str]
+        List of GS uris to parquet files
+    dataset_name : str
+        The dataset name to use when creating in BQ
+    config : Config object
+        Config object holding GCP and local paths.
+    gcp_env : str
+        Determines which GCP environment to use from config.gcp
+    prod_env : str
+        If gcp_env = "prod", determines which GCP environemnt to use from config.gcp.prod
+    description : str
+        The dataset description to use when creating in BQ
+    """
     uris = Parameter("uris")
     dataset_name = Parameter("dataset_name")
     config = Parameter("config", default=CONFIG)

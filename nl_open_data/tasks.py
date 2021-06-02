@@ -266,21 +266,11 @@ def list_dir(folder: Union[Path, str], suffix: Iterable):
     folder = Path(folder)
     if suffix[0] != ".":
         suffix = "." + suffix
-    full_paths = [file for file in folder.iterdir() if file.suffix == suffix]
-    return full_paths
-
-
-# def list_dir(folder: Union[Path, str], suffixes: Iterable):
-#     folder = Path(folder)
-#     paths = {}
-#     for suffix in suffixes:
-#         if suffix[0] != ".":
-#             suffix = "." + suffix
-#         full_paths = [
-#             file for file in folder.iterdir() if file.suffix == suffix
-#         ]
-#         paths[suffix] = full_paths
-#     return paths
+    full_paths = [file for file in folder.rglob("*") if file.suffix == suffix]
+    if full_paths:
+        return full_paths
+    else:
+        return None
 
 
 @task(log_stdout=True)
@@ -289,8 +279,7 @@ def csv_to_parquet(
     out_file: Union[str, Path] = None,
     # out_folder: Union[str, Path] = None,
     delimiter: str = ",",
-    encoding: str = "utf-8"
-    # TODO Add args, kwargs, to give to read_csv?
+    encoding: str = "utf-8",
 ) -> Path:
     file = Path(file)
 
@@ -300,7 +289,6 @@ def csv_to_parquet(
         else:
             folder = nlu.create_dir_util(file.parents[0] / "parquet")
             out_file = folder / (file.stem + ".parquet")
-            # out_file = Path("".join(str(file).split(".")[:-1]) + ".parquet")
         table = csv.read_csv(
             file,
             read_options=csv.ReadOptions(encoding=encoding),
@@ -442,27 +430,6 @@ def gcs_folder_to_bq(
     )
 
     return tables
-
-
-# @task()
-# def combine_parquet_files(input_folder, target_path):
-#     try:
-#         files = []
-#         for file_name in os.listdir(input_folder):
-#             files.append(pq.read_table(os.path.join(input_folder, file_name)))
-#         with pq.ParquetWriter(
-#             target_path,
-#             files[0].schema,
-#             version="2.0",
-#             compression="gzip",
-#             use_dictionary=True,
-#             data_page_size=2097152,  # 2MB
-#             write_statistics=True,
-#         ) as writer:
-#             for f in files:
-#                 writer.write_table(f)
-#     except Exception as e:
-#         print(e)
 
 
 @task()
