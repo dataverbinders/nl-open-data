@@ -59,8 +59,8 @@ with Flow("zipped_file") as zip_flow:
     prod_env = Parameter("prod_env", default=None)
 
     # For local testing
-    local_folder = nlt.create_dir(Path("." / Path("zipped_csv_flow")))
-    # local_folder = nlt.create_temp_dir("zipped_csv_flow")
+    # local_folder = nlt.create_dir(Path("." / Path("zipped_csv_flow")))
+    local_folder = nlt.create_temp_dir("zipped_csv_flow")
     zip_filenames = nlt.get_filename_from_url.map(urls)
 
     download_folder = nlt.create_dir(local_folder / Path("download"))

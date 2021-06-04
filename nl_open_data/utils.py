@@ -94,11 +94,11 @@ def set_gcp(
         raise ValueError(
             "One of 'source' OR 'prod_env' MUST be specified for 'prod' env"
         )
-    elif source is not None and prod_env is not None:
-        raise ValueError(
-            "ONLY ONE of 'source' OR 'prod_env' can be specified for 'prod' env"
-        )
-    ## If source is specified, inner "prod" selection is automatic
+    ## If prod_env specified, it takes precedence
+    elif prod_env is not None:
+        prod_env = prod_env.lower()
+        return config_envs[gcp_env][prod_env]
+    ## Finally, if source is specified, inner "prod" selection is automatic
     # currently, only "cbs" and external applies (within "external", different sources are handled later, not here)
     elif source is not None:
         return (
@@ -106,10 +106,6 @@ def set_gcp(
             if source == "cbs"
             else config_envs[gcp_env]["external"]
         )
-    ## A specific prod_env can also be selected manually
-    elif prod_env is not None:
-        prod_env = prod_env.lower()
-        return config_envs[gcp_env][prod_env]
 
 
 def check_bq_dataset(dataset_id: str, gcp: Mapping) -> bool:
