@@ -3,12 +3,13 @@
 # the config object must be imported from config.py before any Prefect imports
 from pathlib import Path
 
-from prefect import Flow, unmapped, Parameter, flatten
+from prefect import Flow, unmapped, Parameter, flatten, case, apply_map
 from prefect.tasks.shell import ShellTask
 from prefect.triggers import all_finished
 from prefect.run_configs import LocalRun
 from prefect.storage import GCS
 from prefect.executors import DaskExecutor
+from prefect.utilities.tasks import task
 
 from nl_open_data.config import config
 import nl_open_data.tasks as nlt
@@ -24,7 +25,8 @@ nlt.unzip.skip_on_upstream_skip = False
 # Always clean up at end
 nlt.remove_dir.trigger = all_finished
 
-with Flow("zipped_csv") as zip_flow:
+
+with Flow("zipped_file") as zip_flow:
     """a Prefect Flow downloading a zipped folder containing csv files.
     
     This flow takes a list of urls, and assumes each url points to a zip file. It further assumes
@@ -51,24 +53,25 @@ with Flow("zipped_csv") as zip_flow:
 
     urls = Parameter("urls")
     csv_delimiter = Parameter("csv_delimiter", default=",")
-    encoding = Parameter("encoding", default="utf-8")
+    csv_encoding = Parameter("csv_encoding", default="utf-8")
     gcs_folder = Parameter("gcs_folder")
     gcp_env = Parameter("gcp_env", default="dev")
     prod_env = Parameter("prod_env", default=None)
+
     # For local testing
-    # local_folder = nlt.create_dir(Path("." / Path("zipped_csv_flow")))
-    local_folder = nlt.create_temp_dir("zipped_csv_flow")
+    local_folder = nlt.create_dir(Path("." / Path("zipped_csv_flow")))
+    # local_folder = nlt.create_temp_dir("zipped_csv_flow")
     zip_filenames = nlt.get_filename_from_url.map(urls)
+
     download_folder = nlt.create_dir(local_folder / Path("download"))
+
     unzip_folder = nlt.create_dir(local_folder / Path("unzipped"))
     unzip_folder_names = nlt.stem_wrap.map(zip_filenames)
     unzip_folder_paths = nlt.create_path.map(unmapped(unzip_folder), unzip_folder_names)
     unzip_folders = nlt.create_dir.map(unzip_folder_paths)
+
     upload_folder = nlt.create_dir(local_folder / Path("upload_to_gcs"))
-    upload_folder_paths = nlt.create_path.map(
-        unmapped(upload_folder), unzip_folder_names
-    )
-    upload_folders = nlt.create_dir.map(upload_folder_paths)
+
     zip_filepaths = nlt.create_path.map(unmapped(download_folder), zip_filenames)
     curl_commands = nlt.curl_cmd.map(urls, zip_filepaths, limit_retries=unmapped(False))
     curl_downloads = curl_download.map(
@@ -77,24 +80,29 @@ with Flow("zipped_csv") as zip_flow:
     unzipped_folders = nlt.unzip.map(
         zip_filepaths, out_folder=unzip_folders, upstream_tasks=[curl_downloads],
     )
-    csv_files = nlt.list_dir.map(
-        folder=unzipped_folders,
-        suffix=unmapped(".csv"),
-        upstream_tasks=[unzipped_folders],
-    )
-    pq_filenames = nlt.replace_suffix.map(
-        filepath=flatten(csv_files), new_suffix=unmapped(".parquet")
-    )
-    pq_filepaths = nlt.create_path.map(upload_folders, pq_filenames)
-    pq_files = nlt.csv_to_parquet.map(
-        file=flatten(csv_files),
-        out_file=pq_filepaths,
+    files = nlt.list_dir.map(folder=unzipped_folders)
+    same_files = nlt.same_path(
+        flatten(files)
+    )  # flatten does not play nice with apply_map
+    rel_paths = nlt.relative_to_wrap.map(same_files, unmapped(unzip_folder))
+    out_filepaths = nlt.create_path.map(unmapped(upload_folder), rel_paths)
+
+    pq_files = apply_map(
+        nlt.convert_files_switch,
+        same_files,
+        out_filepaths,
         delimiter=unmapped(csv_delimiter),
-        encoding=unmapped(encoding),
+        encoding=unmapped(csv_encoding),
     )
-    clean_files = nlt.clean_file_name.map(pq_files)
+
+    clean_upload_folder = nlt.clean_folder_names(
+        upload_folder, upstream_tasks=[pq_files]
+    )
+    clean_files = nlt.list_dir(folder=clean_upload_folder)
+
     gcs_ids = nlt.upload_to_gcs.map(
         to_upload=clean_files,
+        local_parent=unmapped(upload_folder),
         gcs_folder=unmapped(gcs_folder),
         config=unmapped(config),
         gcp_env=unmapped(gcp_env),
@@ -105,6 +113,8 @@ with Flow("zipped_csv") as zip_flow:
 zip_flow.set_reference_tasks([gcs_ids])
 
 if __name__ == "__main__":
+    # from datetime import datetime
+
     # Register flow
     zip_flow.storage = GCS(
         project="dataverbinders-dev",
@@ -122,16 +132,16 @@ if __name__ == "__main__":
     # # Run Locally
     # # flow parameters
     # SOURCE = "uwv"
-    # # URL_PC6HUISNR = [
-    # #     "https://www.cbs.nl/-/media/_excel/2019/42/2019-cbs-pc6huisnr20190801_buurt.zip"
-    # # ]
+    # URL_PC6HUISNR = [
+    #     "https://www.cbs.nl/-/media/_excel/2019/42/2019-cbs-pc6huisnr20190801_buurt.zip"
+    # ]
     # UWV_URLS_SAMPLE = [
     #     "https://data.overheid.nl/sites/default/files/dataset/92f2ea2e-2490-49e0-ad4b-cb48e1ba6840/resources/UWVopenmatch%2020191126.zip",
     #     "https://data.overheid.nl/sites/default/files/dataset/92f2ea2e-2490-49e0-ad4b-cb48e1ba6840/resources/UWVopenmatch%2020191203.zip",
     # ]
     # CSV_DELIMITER = ";"
     # ENCODING = "8859"
-    # # BQ_DATASET_NAME = "buurt_wijk_gemeente_pc"
+    # BQ_DATASET_NAME = "buurt_wijk_gemeente_pc"
     # BQ_DATASET_NAME = "open_match_data"
     # GCS_FOLDER = (
     #     SOURCE
@@ -144,7 +154,7 @@ if __name__ == "__main__":
     #     parameters={
     #         "urls": UWV_URLS_SAMPLE,
     #         "csv_delimiter": CSV_DELIMITER,
-    #         "encoding": ENCODING,
+    #         "csv_encoding": ENCODING,
     #         "gcs_folder": GCS_FOLDER,
     #     }
     # )

@@ -32,12 +32,12 @@ UWV_OPEN_MATCH_URLS = [
     resource["url"] for resource in resources if ".zip" in resource["url"]
 ]
 CSV_DELIMITER = ";"
-ENCODING = "8859"
+CSV_ENCODING = "8859"
 DATASET_NAME = "open_match_data"
 GCS_FOLDER = SOURCE + "/" + DATASET_NAME + "/" + datetime.today().strftime("%Y%m%d")
 
 # run parameters
-ZIP_VERSION_GROUP_ID = "zipped_csv"
+ZIP_VERSION_GROUP_ID = "zipped_file"
 ZIP_RUN_NAME = (
     f"uwv_open_match_data_{datetime.today().date()}_{datetime.today().time()}"
 )
@@ -45,19 +45,12 @@ ZIP_RUN_NAME = (
 zip_parameters = {
     "urls": UWV_OPEN_MATCH_URLS,
     "csv_delimiter": CSV_DELIMITER,
-    "encoding": ENCODING,
+    "csv_encoding": CSV_ENCODING,
     "gcs_folder": GCS_FOLDER,
 }
 
-# client = PrefectClient()
-# flow_run_id = client.create_flow_run(
-#     version_group_id=ZIP_VERSION_GROUP_ID,
-#     run_name=ZIP_RUN_NAME,
-#     parameters=zip_parameters,
-# )
-
 zip_flow = StartFlowRun(
-    flow_name="zipped_csv",
+    flow_name=ZIP_VERSION_GROUP_ID,
     project_name=PROJECT,
     run_name=ZIP_RUN_NAME,
     parameters=zip_parameters,
@@ -68,12 +61,16 @@ zip_flow = StartFlowRun(
 
 ## gcs_to_bq
 # flow parameters
-URIS = get_gcs_uris(
-    gcs_folder=GCS_FOLDER, source=SOURCE, config=CONFIG, gcp_env=GCP_ENV
-)
+URIS = [
+    uri
+    for uri in get_gcs_uris(
+        gcs_folder=GCS_FOLDER, source=SOURCE, config=CONFIG, gcp_env=GCP_ENV
+    )
+    if uri.split(".")[-1] == ".parquet"
+]
 BQ_DATASET_NAME = f"{SOURCE}_{DATASET_NAME}"
 BQ_DATASET_DESCRIPTION = """
-
+    
 """
 
 # run parameters
