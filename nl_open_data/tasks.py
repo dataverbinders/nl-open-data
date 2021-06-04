@@ -1,4 +1,4 @@
-from typing import Union, List, Iterable
+from typing import Union, Mapping, Sequence
 from pathlib import Path
 import os
 from shutil import rmtree
@@ -10,7 +10,7 @@ from box import Box
 from google.cloud import storage
 import pandas as pd
 from pyarrow import Table as PA_Table
-from pyarrow import csv, concat_tables
+from pyarrow import csv
 import pyarrow.parquet as pq
 from prefect import task, case
 from prefect.tasks.control_flow import merge
@@ -522,23 +522,29 @@ def gcs_folder_to_bq(
 ):
     gcp = nlu.set_gcp(config=config, gcp_env=gcp_env, source=source, prod_env=prod_env)
 
-    # If source was given through kwargs, use to cunstruct full dataset_id
-    try:
-        dataset_id = f"{kwargs['source']}_{dataset_name}"
-    except KeyError:
-        dataset_id = dataset_name
+    # If source was given, use to cunstruct full dataset_id
+    dataset_id = f"{source}_{dataset_name}" if source else dataset_name
 
     # Check if dataset exists and delete if it does TODO: maybe delete anyway (deleting currently uses not_found_ok to ignore error if does not exist)
     if nlu.check_bq_dataset(dataset_id=dataset_id, gcp=gcp):
         nlu.delete_bq_dataset(dataset_id=dataset_id, gcp=gcp)
 
     # Create dataset and reset dataset_id to new dataset
-    dataset_id = nlu.create_bq_dataset(name=dataset_name, gcp=gcp, **kwargs)
+    dataset_id = nlu.create_bq_dataset(name=dataset_id, gcp=gcp, **kwargs)
+
+    uris = nlu.get_gcs_uris(
+        gcs_folder=gcs_folder,
+        source=source,
+        config=config,
+        gcp_env=gcp_env,
+        prod_env=prod_env,
+    )
 
     # Link parquet files in GCS to tables in BQ dataset
-    tables = nlu.link_pq_folder_to_bq_dataset(
-        gcs_folder=gcs_folder, gcp=gcp, dataset_id=dataset_id
-    )
+    tables = nlu.create_linked_tables(uris, gcp, dataset_id)
+    # tables = nlu.link_pq_folder_to_bq_dataset(
+    #     gcs_folder=gcs_folder, gcp=gcp, dataset_id=dataset_id
+    # )
 
     return tables
 

@@ -13,6 +13,7 @@ with Flow("gcs_folder_to_bq_flow") as gcs_folder_to_bq_flow:
     source = Parameter("source", default=None)
     gcp_env = Parameter("gcp_env", default="dev")
     prod_env = Parameter("prod_env", default=None)
+    description = Parameter("description", default="")
 
     nlt.gcs_folder_to_bq(
         gcs_folder=gcs_folder,
@@ -21,6 +22,7 @@ with Flow("gcs_folder_to_bq_flow") as gcs_folder_to_bq_flow:
         source=source,
         gcp_env=gcp_env,
         prod_env=prod_env,
+        description=description,
     )
 
 if __name__ == "__main__":
@@ -35,8 +37,13 @@ if __name__ == "__main__":
         project_name="nl_open_data", version_group_id="gcs_folder_to_bq"
     )
 
-# # Run locally
-# GCS_FOLDER = "cbs/kwb"
-# DATASET_NAME = "cbs_kwb"
-# params = {"gcs_folder": GCS_FOLDER, "dataset_name": DATASET_NAME}
-# state = gcs_folder_to_bq_flow.run(parameters=params)
+    # # Run locally
+    # GCS_FOLDER = "cbs/kwb"
+    # DATASET_NAME = "cbs_kwb"
+    # DESCRIPTION = "SOME DESCRIPTION"
+    # params = {
+    #     "gcs_folder": GCS_FOLDER,
+    #     "dataset_name": DATASET_NAME,
+    #     "description": DESCRIPTION,
+    # }
+    # state = gcs_folder_to_bq_flow.run(parameters=params)

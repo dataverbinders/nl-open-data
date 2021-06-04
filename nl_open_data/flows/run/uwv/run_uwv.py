@@ -13,6 +13,7 @@ from nl_open_data.ckan import get_datasets
 GCP_ENV = "prod"
 PROD_ENV = "external"
 # If dev
+print(sys.argv)
 if len(sys.argv) != 1:
     if sys.argv[1] == "--dev":
         GCP_ENV = sys.argv[1]
@@ -54,6 +55,8 @@ zip_parameters = {
     "csv_delimiter": CSV_DELIMITER,
     "csv_encoding": CSV_ENCODING,
     "gcs_folder": GCS_FOLDER,
+    "gcp_env": GCP_ENV,
+    "prod_env": PROD_ENV,
 }
 
 zip_flow = StartFlowRun(
@@ -68,14 +71,14 @@ zip_flow = StartFlowRun(
 
 ## gcs_to_bq
 # flow parameters
-URIS = [
-    uri
-    for uri in get_gcs_uris(
-        gcs_folder=GCS_FOLDER, source=SOURCE, config=CONFIG, gcp_env=GCP_ENV,
-    )
-    # if uri.split(".")[-1] == "parquet"  # Igonre metadata (json files)
-]
-BQ_DATASET_NAME = f"{SOURCE}_{DATASET_NAME}"
+# URIS = [
+#     uri
+#     for uri in get_gcs_uris(
+#         gcs_folder=GCS_FOLDER, source=SOURCE, config=CONFIG, gcp_env=GCP_ENV,
+#     )
+#     # if uri.split(".")[-1] == "parquet"  # Igonre metadata (json files)
+# ]
+# BQ_DATASET_NAME = f"{SOURCE}_{DATASET_NAME}"
 BQ_DATASET_DESCRIPTION = """
 Deze dataset start per draaidatum 25-11-2019 en komt in plaats van de UWV Beroepenkaart-data (actueel t/m 20-11-2018) .
 
@@ -83,35 +86,35 @@ De gegevens onder de open match data zijn vacatures en geanonimiseerde CVs in we
 """  # source: https://data.overheid.nl/dataset/uwv-open-match-data
 
 # run parameters
-VERSION_GROUP_ID = "gcs_to_bq"
+VERSION_GROUP_ID = "gcs_folder_to_bq_flow"
 BQ_RUN_NAME = f"gcs_to_bq_uwv_{RUN_TIME}"
 
 
 PARAMETERS = {
-    "uris": URIS,
-    "dataset_name": BQ_DATASET_NAME,
+    "gcs_folder": GCS_FOLDER,
+    "dataset_name": DATASET_NAME,
+    "source": SOURCE,
     # "config": CONFIG, #BUG
     "gcp_env": GCP_ENV,
     "prod_env": PROD_ENV,
     "description": BQ_DATASET_DESCRIPTION,
 }
-print(URIS)
 
 # Schedule run
-gcs_to_bq_flow = StartFlowRun(
+gcs_folder_to_bq_flow = StartFlowRun(
     flow_name=VERSION_GROUP_ID,
     project_name=PROJECT,
     run_name=BQ_RUN_NAME,
     parameters=PARAMETERS,
     wait=True,
 )
-gcs_to_bq_flow.trigger = all_finished  # Always run
+gcs_folder_to_bq_flow.trigger = all_finished  # Always run
 
 ######################################################
 
 ## Flow of flows
 
 with Flow("parent-flow") as flow:
-    uwv_flow = gcs_to_bq_flow(upstream_tasks=[zip_flow])
+    uwv_flow = gcs_folder_to_bq_flow(upstream_tasks=[zip_flow])
 
 flow.run()
