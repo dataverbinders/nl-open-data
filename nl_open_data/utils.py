@@ -7,6 +7,28 @@ from google.cloud import exceptions
 import google.api_core.exceptions as google_execptions
 
 
+def clean_string(s: str, extra_chars: str = ""):
+    """Method to replace various chars with an underscore and remove leading and trailing whitespace
+
+    Parameters
+    ----------
+    s : str
+        string to clean
+    extra_chars : str, optional
+        additional characrters to be replaced by an underscore
+
+    Returns
+    -------
+    s: str
+        clean string
+    """
+    chars = "-.()%" + extra_chars
+    for char in chars:
+        s = s.replace(char, "_")
+    s = s.strip()
+    return s
+
+
 def create_dir_util(path: Union[Path, str]) -> Path:
     """Checks whether a path exists and is a directory, and creates it if not.
 
@@ -273,9 +295,20 @@ def create_linked_tables(source_uris: List[str], gcp: Mapping, dataset_id: str):
     dataset_ref = bigquery.DatasetReference(gcp.project_id, dataset_id)
     tables = []
     for uri in source_uris:
-        table_id = uri.split("/")[-1].split(".")[-2]
+        table_id, suffix = (
+            uri.split("/")[-1].split(".")[-2],
+            uri.split("/")[-1].split(".")[-1],
+        )
         table = bigquery.Table(dataset_ref.table(table_id))
-        external_config = bigquery.ExternalConfig("PARQUET")
+        if suffix == "parquet":
+            external_config = bigquery.ExternalConfig("PARQUET")
+        elif suffix == "json":
+            external_config = bigquery.ExternalConfig("NEWLINE_DELIMITED_JSON")
+            external_config.autodetect = True
+        else:
+            raise TypeError(
+                "Only json or parquet files are supported, file suffix is neither"
+            )
         external_config.source_uris = [uri]
         table.external_data_configuration = external_config
         try:
@@ -353,18 +386,25 @@ def query_cbs_catalogs(
     return ids
 
 
-# if __name__ == "__main__":
-#     from nl_open_data.config import config
+if __name__ == "__main__":
+    from nl_open_data.config import config
 
-#     gcp = set_gcp(config, "prod", source="external")
-#     gcs_folder = "uwv/open_match_data/20210525"
+    gcp = set_gcp(config, "prod", source="external")
+    project = "dataverbinders-external-dl"
+    gcs_folder = "uwv/open_match_data/20210604"
 
-#     # storage_client = storage.Client(project=gcp.project_id)
-#     # blobs = storage_client.list_blobs(gcp.bucket, prefix=gcs_folder)
-#     # names = [blob.name for blob in blobs]
-#     # print(names)
+    # storage_client = storage.Client(project=gcp.project_id)
+    # blobs = storage_client.list_blobs(gcp.bucket, prefix=gcs_folder)
+    # names = [blob.name for blob in blobs if "pakbon" in blob.name]
+    # uris = [f"gs://{project}/{name}" for name in names]
 
-#     link_pq_folder_to_bq_dataset(
-#         gcs_folder=gcs_folder, gcp=gcp, dataset_id="uwv_open_match_data",
-#     )
+    uris = get_gcs_uris(
+        gcs_folder=gcs_folder, source="uwv", config=config, gcp_env="dev"
+    )
+    print(uris)
 
+    # create_linked_tables(uris, gcp=gcp, dataset_id="uwv_open_match_data")
+
+    # link_pq_folder_to_bq_dataset(
+    #     gcs_folder=gcs_folder, gcp=gcp, dataset_id="uwv_open_match_data",
+    # )

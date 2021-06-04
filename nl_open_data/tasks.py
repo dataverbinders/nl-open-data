@@ -12,10 +12,16 @@ import pandas as pd
 from pyarrow import Table as PA_Table
 from pyarrow import csv, concat_tables
 import pyarrow.parquet as pq
+from prefect import task, case
+from prefect.tasks.control_flow import merge
 from prefect.engine.signals import SKIP
-from prefect import task
 
 import nl_open_data.utils as nlu
+
+
+@task
+def same_path(path):
+    return path
 
 
 @task
@@ -26,6 +32,16 @@ def path_wrap(string):
 @task
 def stem_wrap(p: Union[Path, str]):
     return Path(p).stem
+
+
+@task
+def suffix_wrap(p: Union[Path, str]):
+    return Path(p).suffix
+
+
+@task
+def relative_to_wrap(p: Union[Path, str], relative_to: Union[Path, str]):
+    return Path(p).relative_to(Path(relative_to))
 
 
 @task
@@ -74,45 +90,56 @@ def get_wrap(obj, key):
 
 
 @task
-def clean_file_name(file: Union[str, Path], chars: str = None) -> Path:
-    """Renames files by replacing certain characters from the filename with an underscore.
+def clean_folder_names(folder: Union[str, Path], extra_chars: str = ""):
+    folder = Path(folder)
+    for p in folder.rglob("*"):
+        no_suffix = str(p.parents[0] / p.stem)
+        clean_path = nlu.clean_string(no_suffix, extra_chars) + p.suffix
+        p.rename(clean_path)
+    return folder
 
-    By default, replaces all occurunces of: hyphen, dot or parentheses.
-    To replace different characters, provide a single string with desired characters.
 
-    Original filepath must exist.
+# @task
+# def clean_file_name(file: Union[str, Path], chars: str = None) -> Path:
+#     """Renames files by replacing certain characters from the filename with an underscore.
 
-    Parameters
-    ----------
-    file : Union[str, Path]
-        The file to clean its name.
-    extra_chars : str, optional
-        Additional characters to replace.
+#     By default, replaces all occurrences of: hyphen, dot or parentheses.
+#     To replace different characters, provide a single string with desired characters.
 
-    Returns
-    -------
-    Path
-        The filepath to the renamed file.
+#     Original filepath must exist.
 
-    Examples
-    --------
-    >>> path = "/some-folder/another.folder/some-file$@(1).txt"
-    >>> new_path = clean_file_name(path)
-    >>> new_path
-    PosixPath('/some-folder/another.folder/some_file$@_1_.txt')
-    >>> special_chars = "-()@$"
-    >>> special_new_path = clean_file_name(path, special_chars)
-    PosixPath('/some-folder/another.folder/some_file___1_.txt')
-    """
-    path = Path(file)
-    if not chars:
-        chars = "-.()%"
-    new_stem = path.stem
-    for char in chars:
-        new_stem = new_stem.replace(char, "_")
-    new_path = path.parent / Path(new_stem + path.suffix)
-    new_path = path.rename(new_path)
-    return new_path
+#     Parameters
+#     ----------
+#     file : Union[str, Path]
+#         The file to clean its name.
+#     extra_chars : str, optional
+#         Additional characters to replace.
+
+#     Returns
+#     -------
+#     Path
+#         The filepath to the renamed file.
+
+#     Examples
+#     --------
+#     >>> path = "/some-folder/another.folder/some-file$@(1).txt"
+#     >>> new_path = clean_file_name(path)
+#     >>> new_path
+#     PosixPath('/some-folder/another.folder/some_file$@_1_.txt')
+#     >>> special_chars = "-()@$"
+#     >>> special_new_path = clean_file_name(path, special_chars)
+#     PosixPath('/some-folder/another.folder/some_file___1_.txt')
+#     """
+#     path = Path(file)
+#     if not chars:
+#         chars = "-.()%"
+#     # new_stem = path.stem
+#     for char in chars:
+#         new_path = path.replace(char, "_")
+#         # new_stem = new_stem.replace(char, "_")
+#     # new_path = path.parent / Path(new_stem + path.suffix)
+#     new_path = path.rename(new_path)
+#     return new_path
 
 
 @task
@@ -206,22 +233,22 @@ def curl_cmd(
     ------
     SKIP
         if filepath exists
-    
+
     Example
     -------
     ```
     from pathlib import Path
-    
+
     from prefect import Parameter, Flow
     from prefect.tasks.shell import ShellTask
 
     curl_download = ShellTask(name='curl_download')
-    
+
     with Flow('test') as flow:
         filepath = Parameter("filepath", required=True)
         curl_command = curl_cmd("https://some/url", filepath)
         curl_download = curl_download(command=curl_command)
-    
+
     flow.run(parameters={'filepath': Path.home() / 'test.zip'})
     ```
     """
@@ -262,18 +289,61 @@ def unzip(zipfile: Union[Path, str], out_folder: Union[Path, str] = None):
 
 
 @task()
-def list_dir(folder: Union[Path, str], suffix: Iterable):
+def list_dir(folder: Union[Path, str], suffix: str = None):
     folder = Path(folder)
-    if suffix[0] != ".":
-        suffix = "." + suffix
-    full_paths = [file for file in folder.rglob("*") if file.suffix == suffix]
+    if not suffix:
+        full_paths = [file for file in folder.rglob("*") if file.is_file()]
+    else:
+        if suffix[0] != ".":
+            suffix = "." + suffix
+        full_paths = [
+            file
+            for file in folder.rglob("*")
+            if (file.is_file() and file.suffix == suffix)
+        ]
     if full_paths:
         return full_paths
     else:
         return None
 
 
-@task(log_stdout=True)
+@task()
+def fwf_to_ndjson(
+    file: Union[str, Path], out_file: Union[str, Path] = None, **kwargs
+) -> Path:
+    if not file.suffix == ".txt":
+        raise TypeError("Only txt files are allowed")
+    if out_file is not None:
+        out_file = Path(out_file)
+        folder = nlu.create_dir_util(out_file.parents[0])
+    else:
+        folder = nlu.create_dir_util(file.parents[0] / "json")
+        out_file = folder / (file.stem + ".json")
+    df = pd.read_fwf(file, **kwargs)
+    df.to_json(out_file, orient="records", lines=True)
+    os.remove(file)
+    return out_file
+
+
+@task()
+def fwf_to_parquet(
+    file: Union[str, Path], out_file: Union[str, Path] = None, **kwargs
+) -> Path:
+    if not file.suffix == ".txt":
+        raise TypeError("Only txt files are allowed")
+    if out_file is not None:
+        out_file = Path(out_file)
+        folder = nlu.create_dir_util(out_file.parents[0])
+    else:
+        folder = nlu.create_dir_util(file.parents[0] / "parquet")
+        out_file = folder / (file.stem + ".parquet")
+    df = pd.read_fwf(file, **kwargs)
+    df.to_parquet(out_file)
+    os.remove(file)
+    return out_file
+
+
+@task()
 def csv_to_parquet(
     file: Union[str, Path],
     out_file: Union[str, Path] = None,
@@ -283,21 +353,22 @@ def csv_to_parquet(
 ) -> Path:
     file = Path(file)
 
-    if file.suffix == ".csv":
-        if out_file is not None:
-            out_file = Path(out_file)
-        else:
-            folder = nlu.create_dir_util(file.parents[0] / "parquet")
-            out_file = folder / (file.stem + ".parquet")
-        table = csv.read_csv(
-            file,
-            read_options=csv.ReadOptions(encoding=encoding),
-            parse_options=csv.ParseOptions(delimiter=delimiter),
-        )
-        pq.write_table(table, out_file)  # TODO -> set proper data types in parquet file
-        os.remove(file)
-
-        return out_file
+    if not file.suffix == ".csv":
+        raise TypeError("Only csv files are allowed")
+    if out_file is not None:
+        out_file = Path(out_file)
+        folder = nlu.create_dir_util(out_file.parents[0])
+    else:
+        folder = nlu.create_dir_util(file.parents[0] / "parquet")
+        out_file = folder / (file.stem + ".parquet")
+    table = csv.read_csv(
+        file,
+        read_options=csv.ReadOptions(encoding=encoding),
+        parse_options=csv.ParseOptions(delimiter=delimiter),
+    )
+    pq.write_table(table, out_file)  # TODO -> set proper data types in parquet file
+    os.remove(file)
+    return out_file
 
 
 @task()
@@ -326,26 +397,37 @@ def xls_to_parquet(
         raise TypeError("Only file extensions '.xls' are allowed")
 
 
-@task
-def concat_parquet_files(
-    pq_files: List[Union[str, Path]],
-    out_folder: Union[str, Path],
-    out_file: Union[str, Path],
-) -> Path:
-    tables = [pq.read_table(file) for file in pq_files]
-    full_table = concat_tables(tables)
-    o = pq.write_table(full_table, Path(out_folder) / Path(out_file))
+def convert_files_switch(file, out_file, **kwargs):
+    suffix = suffix_wrap(file)
+    with case(suffix, ".csv"):
+        n_out_file = replace_suffix(out_file, ".parquet")
+        out_1 = csv_to_parquet(file, n_out_file, **kwargs)
+    with case(suffix, ".txt"):
+        out_file = replace_suffix(out_file, ".json")
+        out_2 = fwf_to_ndjson(file, out_file)
+    return merge(out_1, out_2)
 
-    return o
+
+# @task
+# def concat_parquet_files(
+#     pq_files: List[Union[str, Path]],
+#     out_folder: Union[str, Path],
+#     out_file: Union[str, Path],
+# ) -> Path:
+#     tables = [pq.read_table(file) for file in pq_files]
+#     full_table = concat_tables(tables)
+#     o = pq.write_table(full_table, Path(out_folder) / Path(out_file))
+
+#     return o
 
 
 @task()
-def replace_suffix(filepath: Union[List, str, Path], new_suffix: str):
-    if isinstance(filepath, list):
-        return [replace_suffix(Path(path), new_suffix) for path in filepath]
-    else:
-        filepath = Path(filepath)
-        return filepath.stem + new_suffix
+def replace_suffix(filepath: Union[str, Path], new_suffix: str):
+    # if isinstance(filepath, list):
+    #     return [replace_suffix(Path(path), new_suffix) for path in filepath]
+    # else:
+    # filepath = Path(filepath)
+    return Path(filepath).with_suffix(new_suffix)
 
 
 @task()
@@ -366,9 +448,36 @@ def struct_to_parquet(struct: list, file_name: str, folder_name: str = None):
     return pq_file
 
 
+# @task
+# def upload_to_gcs(
+#     to_upload: Union[str, Path],
+#     top_folder: Union[str, Path],
+#     config: Box,
+#     source: str = None,
+#     gcp_env: str = "dev",
+#     prod_env: str = None,
+# ) -> list:
+
+#     to_upload = Path(to_upload)
+
+#     # Set GCP params
+#     gcp = nlu.set_gcp(config=config, gcp_env=gcp_env, source=source, prod_env=prod_env)
+#     client = storage.Client(project=gcp.project_id)
+#     gcs_bucket = client.get_bucket(gcp.bucket)
+#     # List to return blob ids
+#     ids = []
+
+#     gcs_blob = gcs_bucket.blob(gcs_folder + "/" + to_upload.name)
+#     gcs_blob.upload_from_filename(to_upload)
+#     ids.append(gcs_blob.id)
+
+#     return ids
+
+
 @task
 def upload_to_gcs(
     to_upload: Union[str, Path],
+    local_parent: Path,
     gcs_folder: str,
     config: Box,
     source: str = None,
@@ -386,15 +495,17 @@ def upload_to_gcs(
     # List to return blob ids
     ids = []
     # Upload file(s)
-    if to_upload.is_dir():
-        for pfile in os.listdir(to_upload):
-            gcs_blob = gcs_bucket.blob(gcs_folder + "/" + pfile)
-            gcs_blob.upload_from_filename(to_upload / pfile)
-            ids.append(gcs_blob.id)
-    elif to_upload.is_file():
-        gcs_blob = gcs_bucket.blob(gcs_folder + "/" + to_upload.name)
-        gcs_blob.upload_from_filename(to_upload)
-        ids.append(gcs_blob.id)
+    # if to_upload.is_dir():
+    #     for pfile in os.listdir(to_upload):
+    #         gcs_blob = gcs_bucket.blob(gcs_folder + "/" + pfile)
+    #         gcs_blob.upload_from_filename(to_upload / pfile)
+    #         ids.append(gcs_blob.id)
+    # elif to_upload.is_file():
+    gcs_blob = gcs_bucket.blob(
+        gcs_folder + "/" + str(to_upload.relative_to(local_parent))
+    )
+    gcs_blob.upload_from_filename(to_upload)
+    ids.append(gcs_blob.id)
 
     return ids
 
