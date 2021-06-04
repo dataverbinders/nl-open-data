@@ -1,17 +1,24 @@
-import requests
 from datetime import datetime
+import sys
 
 from prefect import Flow
 from prefect.tasks.prefect import StartFlowRun
-from prefect import Client
+from prefect.triggers import all_finished
 
 from nl_open_data.config import config as CONFIG
 from nl_open_data.utils import get_gcs_uris
 from nl_open_data.ckan import get_datasets
 
-# GCP env parameters
-GCP_ENV = "dev"
-PROD_ENV = None
+# By Default use prod GCP env parameters
+GCP_ENV = "prod"
+PROD_ENV = "external"
+# If dev
+if len(sys.argv) != 1:
+    if sys.argv[1] == "--dev":
+        GCP_ENV = sys.argv[1]
+        PROD_ENV = None
+    else:
+        raise ValueError("Only '--dev' can be provided as an argument")
 
 # General script parameters
 SOURCE = "uwv"
@@ -64,14 +71,16 @@ zip_flow = StartFlowRun(
 URIS = [
     uri
     for uri in get_gcs_uris(
-        gcs_folder=GCS_FOLDER, source=SOURCE, config=CONFIG, gcp_env=GCP_ENV
+        gcs_folder=GCS_FOLDER, source=SOURCE, config=CONFIG, gcp_env=GCP_ENV,
     )
-    if uri.split(".")[-1] == ".parquet"
+    # if uri.split(".")[-1] == "parquet"  # Igonre metadata (json files)
 ]
 BQ_DATASET_NAME = f"{SOURCE}_{DATASET_NAME}"
 BQ_DATASET_DESCRIPTION = """
-    
-"""
+Deze dataset start per draaidatum 25-11-2019 en komt in plaats van de UWV Beroepenkaart-data (actueel t/m 20-11-2018) .
+
+De gegevens onder de open match data zijn vacatures en geanonimiseerde CVs in werk.nl. Voor deze set worden deze geaggregeerd 1) per beroep en 2) per viercijferig postcodegebied.
+"""  # source: https://data.overheid.nl/dataset/uwv-open-match-data
 
 # run parameters
 VERSION_GROUP_ID = "gcs_to_bq"
@@ -86,6 +95,7 @@ PARAMETERS = {
     "prod_env": PROD_ENV,
     "description": BQ_DATASET_DESCRIPTION,
 }
+print(URIS)
 
 # Schedule run
 gcs_to_bq_flow = StartFlowRun(
@@ -95,6 +105,7 @@ gcs_to_bq_flow = StartFlowRun(
     parameters=PARAMETERS,
     wait=True,
 )
+gcs_to_bq_flow.trigger = all_finished  # Always run
 
 ######################################################
 

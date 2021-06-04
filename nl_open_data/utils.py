@@ -56,8 +56,10 @@ def create_dir_util(path: Union[Path, str]) -> Path:
 def set_gcp(
     config: Mapping, gcp_env: str, source: str = None, prod_env: str = None
 ) -> Mapping:
-    # TODO: Complete docstring
-    """Sets the desired GCP donciguration
+    """Sets the desired GCP configuration.
+
+    Returns a GCP configuration from config file based in gcp_env. If gcp_env is 'prod',
+    a second selection is taken based on either 'source', or literally specifiying 'prod_env'.
 
     Parameters
     ----------
@@ -67,6 +69,8 @@ def set_gcp(
         String representing the desired environment between ['dev', 'test', 'prod']
     source : str
         The high level source of the dataset ("external" or "cbs")
+    prod_env : str
+        String representing the desired production environment between ['cbs', 'external', 'dwh']
 
     Returns
     -------
@@ -97,8 +101,11 @@ def set_gcp(
     ## If source is specified, inner "prod" selection is automatic
     # currently, only "cbs" and external applies (within "external", different sources are handled later, not here)
     elif source is not None:
-        source = source.lower()
-        return config_envs[gcp_env][source]
+        return (
+            config_envs[gcp_env]["cbs"]
+            if source == "cbs"
+            else config_envs[gcp_env]["external"]
+        )
     ## A specific prod_env can also be selected manually
     elif prod_env is not None:
         prod_env = prod_env.lower()
@@ -243,7 +250,7 @@ def link_pq_folder_to_bq_dataset(gcs_folder: str, gcp: Mapping, dataset_id: str)
 
 
 def get_gcs_uris(
-    gcs_folder: str, source: str, config: Mapping, gcp_env: str
+    gcs_folder: str, source: str, config: Mapping, gcp_env: str, prod_env: str = None
 ) -> Sequence:
     """Returns all uris of files in a GCS folder
 
@@ -257,13 +264,15 @@ def get_gcs_uris(
         configuration object containing GCP environments details
     gcp_env : str
         string to determine which GCP environment to use
+    prod_env : str
+        String representing the desired production environment between ['cbs', 'external', 'dwh']
 
     Returns
     -------
-    Sequence
-        [description]
+    uris
+        List of gs uris to all blobs with the gcs_folder prefix
     """
-    gcp = set_gcp(config=config, gcp_env=gcp_env, source=source)
+    gcp = set_gcp(config=config, gcp_env=gcp_env, source=source, prod_env=prod_env)
     client = storage.Client(project=gcp.project_id)
     blobs = client.list_blobs(gcp.bucket, prefix=gcs_folder)
     uris = ["gs://" + gcp.bucket + "/" + blob.name for blob in blobs]
