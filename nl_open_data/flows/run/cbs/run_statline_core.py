@@ -38,6 +38,7 @@ for i in range(len(ODATA_CBS) // 10 + 1):
         "third_party": THIRD_PARTY,
         "gcp_env": GCP_ENV,
         "force": FORCE,
+        "config": CONFIG
     }
 
     flow_run_id = prefect_client.create_flow_run(
