@@ -85,16 +85,17 @@ with Flow("statline-bq") as statline_flow:
     # Providing it as default in the `register` stage is a temporary hotfix (though providing a default might be considered anyway)
     config = Parameter("config", default=CONFIG)
     gcp_env = Parameter("gcp_env", default="dev")
-    endpoint = Parameter("endpoint", default="bq")
+    # endpoint = Parameter("endpoint", default="bq")
     local_dir = Parameter(
         "local_dir", default=None
     )  # TODO: how to manage in a mapped context? is it even needed here?
     force = Parameter("force", default=False)
     credentials = Parameter("credentials", default=None)
 
+    config_box = nlt.dict_to_box(config, frozen_box=True)
     gcp_env = nlt.lower(gcp_env)
     odata_versions = check_v4.map(ids)
-    gcp = set_gcp(config, gcp_env, source)
+    gcp = set_gcp(config_box, gcp_env, source)
     skips = skip_dataset.map(
         id=ids,
         source=unmapped(source),
@@ -109,7 +110,7 @@ with Flow("statline-bq") as statline_flow:
         id=ids,
         source=unmapped(source),
         third_party=unmapped(third_party),
-        config=unmapped(config),
+        config=unmapped(config_box),
         gcp_env=unmapped(gcp_env),
         force=unmapped(force),
         credentials=unmapped(credentials),
@@ -120,7 +121,7 @@ with Flow("statline-bq") as statline_flow:
         id=ids,
         odata_version=odata_versions,
         source=unmapped(source),
-        config=unmapped(config),
+        config=unmapped(config_box),
         upstream_tasks=[pq_files],
         # BUG: Why is this needed? setting "remove_dir.trigger = all_finished" should have been sufficient, but it isn't
         # This dependency is set to ensure that remove_dir (which has a data dependency on this task) is run after main

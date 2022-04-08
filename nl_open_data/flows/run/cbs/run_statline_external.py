@@ -29,6 +29,7 @@ for source in set(external_v3_datasets.keys()):
     THIRD_PARTY = True
     GCP_ENV = "prod"
     FORCE = False
+    CONFIG = config
 
     for i in range(len(DATA) // 10 + 1):
         # run parameters
@@ -41,6 +42,7 @@ for source in set(external_v3_datasets.keys()):
             "third_party": THIRD_PARTY,
             "gcp_env": GCP_ENV,
             "force": FORCE,
+            "config": CONFIG
         }
 
         flow_run_id = prefect_client.create_flow_run(

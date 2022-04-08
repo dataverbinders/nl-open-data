@@ -1,4 +1,4 @@
-from typing import Union, Mapping, Sequence
+from typing import Union, Mapping, Sequence, Dict
 from pathlib import Path
 import os
 from shutil import rmtree
@@ -17,6 +17,11 @@ from prefect.tasks.control_flow import merge
 from prefect.engine.signals import SKIP
 
 import nl_open_data.utils as nlu
+
+
+@task
+def dict_to_box(dict: Dict, frozen_box: bool = False):
+    return Box(dict, frozen_box=frozen_box)
 
 
 @task

@@ -16,8 +16,8 @@ from nl_open_data.config import config
 TENANT_SLUG = "dataverbinders"
 
 # flow parameters
-DATA = ["83583NED"]
-# DATA = ["83583NED", "83765NED"]
+# DATA = ["83583NED"]
+DATA = ["83583NED", "83765NED"]
 # DATA = ["84750NED"]
 SOURCE = "cbs"
 THIRD_PARTY = False
@@ -38,7 +38,7 @@ statline_parameters = {
     "third_party": THIRD_PARTY,
     "gcp_env": GCP_ENV,
     "force": FORCE,
-    # "config": CONFIG,
+    "config": CONFIG,
 }
 
 if __name__ == "__main__":
